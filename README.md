@@ -39,6 +39,10 @@
 - Support Desktop/Tablets/Big Displays
 - Advanced typography options
 
+## Inspiration
+
+This project was inspired by [The Life Calendar](https://thelifecalendar.com/) — a beautiful visualization of life in weeks.
+
 ## Thanks To
 
 - **[Alex Redwood](https://github.com/aredwood)** - An incredible supporter
