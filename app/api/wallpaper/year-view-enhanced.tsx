@@ -5,7 +5,7 @@
  * Supports custom colors, gradients, dot shapes, typography, layout, and text elements.
  */
 
-import { TextElement, DotShape, BackgroundStyle } from '@/lib/types';
+import { TextElement, BackgroundStyle } from '@/lib/types';
 import { buildBackgroundStyle, dotDivStyle, computeSafeAreaTop, skylineElement } from '@/lib/wallpaper-render';
 import {
   calculateDaysLeftInYear,
@@ -42,7 +42,7 @@ interface YearViewProps {
   timezone?: string;
   backgroundImage?: { url: string; opacity: number };
   // Customization
-  dotStyle?: { shape: DotShape; futureOpacity: number; ringWidth: number };
+  dotStyle?: { futureOpacity: number; ringWidth: number };
   background?: BackgroundStyle;
   daysMonthGrouping?: boolean;
   /** Reserve the top of the screen for the iOS clock + a widget row */
@@ -85,7 +85,7 @@ export default function YearView({
   currentDate = new Date(),
   timezone = 'UTC',
   backgroundImage,
-  dotStyle = { shape: 'circle', futureOpacity: 1, ringWidth: 2 },
+  dotStyle = { futureOpacity: 1, ringWidth: 2 },
   background,
   daysMonthGrouping = false,
   widgetSpace = true,
@@ -101,8 +101,6 @@ export default function YearView({
   const daysLeft = calculateDaysLeftInYear(timezone);
   const totalDays = getTotalDaysInCurrentYear();
 
-  // The current-day dot is always filled (solid), even when the rest are rings.
-  const currentShape = dotStyle.shape === 'ring' ? 'circle' : dotStyle.shape;
 
   // Days View Layout (weekly grid - 2 weeks per row)
   if (yearViewLayout === 'days') {
@@ -212,7 +210,7 @@ export default function YearView({
             ...dotDivStyle({
               size: dotSize,
               color,
-              shape: isCurrent ? currentShape : dotStyle.shape,
+              shape: isCurrent ? 'circle' : 'ring',
               opacity: isFuture ? dotStyle.futureOpacity : 1,
               ringWidth: dotStyle.ringWidth,
             }),
@@ -409,7 +407,7 @@ export default function YearView({
               ...dotDivStyle({
                 size: dotSize,
                 color,
-                shape: isCurrent ? currentShape : dotStyle.shape,
+                shape: isCurrent ? 'circle' : 'ring',
                 opacity: isFuture ? dotStyle.futureOpacity : 1,
                 ringWidth: dotStyle.ringWidth,
               }),

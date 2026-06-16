@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
             lifeExpectancyYears: config.lifeExpectancyYears,
             lifeGrouping: config.lifeGrouping,
             gridCols: config.gridCols,
+            milestones: config.milestones,
           })
         : YearView({
             ...viewProps,

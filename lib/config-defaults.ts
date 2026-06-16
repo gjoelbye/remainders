@@ -9,14 +9,13 @@
 import type {
   BackgroundStyle,
   DaysLayoutMode,
-  DotShape,
   DotStyle,
   LifeGrouping,
   LocalConfig,
+  Milestone,
   TextElement,
   ViewMode,
 } from './types';
-import { DOT_SHAPES } from './types';
 
 /**
  * Canonical defaults — the single source of truth. Mirrors the default-filling
@@ -40,6 +39,7 @@ export const DEFAULT_CONFIG: LocalConfig = {
     statsVisible: true,
   },
   textElements: [],
+  milestones: [],
   layout: {
     topPadding: 0.25,
     bottomPadding: 0.15,
@@ -51,9 +51,9 @@ export const DEFAULT_CONFIG: LocalConfig = {
   daysLayoutMode: 'continuous',
   timezone: 'Europe/Copenhagen',
   lifeExpectancyYears: 84,
-  dotStyle: { shape: 'ring', futureOpacity: 1, ringWidth: 1.5 },
+  dotStyle: { futureOpacity: 1, ringWidth: 1.5 },
   background: { mode: 'solid', from: '#2E3440', to: '#2E3440', angle: 180 },
-  lifeGrouping: { enabled: true, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: true },
+  lifeGrouping: { blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: true },
   daysMonthGrouping: false,
   widgetSpace: true,
   skyline: true,
@@ -110,7 +110,6 @@ function sanitizeDotStyle(v: unknown): DotStyle {
   const d = obj(v);
   const def = DEFAULT_CONFIG.dotStyle;
   return {
-    shape: oneOf<DotShape>(d.shape, DOT_SHAPES, def.shape),
     futureOpacity: num(d.futureOpacity, def.futureOpacity, 0, 1),
     ringWidth: num(d.ringWidth, def.ringWidth, 0.5, 20),
   };
@@ -131,12 +130,37 @@ function sanitizeLifeGrouping(v: unknown): LifeGrouping {
   const d = obj(v);
   const def = DEFAULT_CONFIG.lifeGrouping;
   return {
-    enabled: bool(d.enabled, def.enabled),
     blockShape: oneOf(d.blockShape, ['square', 'tall'] as const, def.blockShape),
     yearGap: num(d.yearGap, def.yearGap, 0, 5),
     decadeGap: num(d.decadeGap, def.decadeGap, 0, 10),
     decadeLabels: bool(d.decadeLabels, def.decadeLabels),
   };
+}
+
+// Accept only a valid YYYY-MM-DD date; otherwise null.
+function optDate(v: unknown): string | null {
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v).getTime())) {
+    return v;
+  }
+  return null;
+}
+
+function sanitizeMilestones(v: unknown): Milestone[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((e) => e && typeof e === 'object')
+    .map((e: Record<string, unknown>, i): Milestone | null => {
+      const start = optDate(e.start);
+      if (!start) return null; // a milestone needs at least a valid start date
+      return {
+        id: str(e.id, `ms-${i}`),
+        start,
+        end: optDate(e.end),
+        ongoing: bool(e.ongoing, false),
+        color: hex(e.color, '#88C0D0'),
+      };
+    })
+    .filter((m): m is Milestone => m !== null);
 }
 
 function sanitizeTextElements(v: unknown): TextElement[] {
@@ -193,6 +217,7 @@ export function sanitizeConfig(input: unknown): LocalConfig {
       statsVisible: bool(typography.statsVisible, D.typography.statsVisible),
     },
     textElements: sanitizeTextElements(c.textElements),
+    milestones: sanitizeMilestones(c.milestones),
     layout: {
       topPadding: num(layout.topPadding, D.layout.topPadding, 0, 0.5),
       bottomPadding: num(layout.bottomPadding, D.layout.bottomPadding, 0, 0.5),

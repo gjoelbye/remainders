@@ -6,7 +6,7 @@
  * and text elements.
  */
 
-import { TextElement, DotShape, BackgroundStyle, LifeGrouping } from '@/lib/types';
+import { TextElement, BackgroundStyle, LifeGrouping, Milestone } from '@/lib/types';
 import { buildBackgroundStyle, dotSvgElement, computeSafeAreaTop, skylineElement } from '@/lib/wallpaper-render';
 
 interface LifeViewProps {
@@ -32,10 +32,11 @@ interface LifeViewProps {
     dotSpacing: number;
   };
   textElements?: TextElement[];
+  milestones?: Milestone[];
   currentDate?: Date;
   backgroundImage?: { url: string; opacity: number };
   // Customization
-  dotStyle?: { shape: DotShape; futureOpacity: number; ringWidth: number };
+  dotStyle?: { futureOpacity: number; ringWidth: number };
   background?: BackgroundStyle;
   lifeExpectancyYears?: number;
   lifeGrouping?: LifeGrouping;
@@ -76,12 +77,13 @@ export default function LifeView({
     dotSpacing: 0.4,
   },
   textElements = [],
+  milestones = [],
   currentDate = new Date(),
   backgroundImage,
-  dotStyle = { shape: 'circle', futureOpacity: 1, ringWidth: 2 },
+  dotStyle = { futureOpacity: 1, ringWidth: 2 },
   background,
   lifeExpectancyYears = 84, // default life expectancy
-  lifeGrouping = { enabled: false, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
+  lifeGrouping = { blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
   widgetSpace = true,
   skyline = true,
   skylineBaseline = 0.24,
@@ -117,30 +119,43 @@ export default function LifeView({
   const availableWidth = width - SAFE_WIDTH_PADDING * 2;
   const availableHeight = height - SAFE_AREA_TOP - SAFE_AREA_BOTTOM;
 
-  // Reserve a fixed band for the footer so the grid is sized/centered ABOVE it
-  // and the footer always sits the same distance from the bottom margin.
-  const footerFontSize = width * typography.fontSize;
-  const footerReserve = typography.statsVisible ? footerFontSize + height * 0.03 : 0;
+  // Footer is three small stacked lines (% of month / year / life). Reserve a
+  // fixed band so the grid is sized/centered ABOVE it and the footer is pinned
+  // the same distance from the bottom margin.
+  const footerLineFont = width * typography.fontSize * 0.85;
+  const footerLineH = footerLineFont * 1.4;
+  const footerBlockH = typography.statsVisible ? footerLineH * 3 : 0;
+  const footerReserve = typography.statsVisible ? footerBlockH + height * 0.02 : 0;
   const gridAreaHeight = availableHeight - footerReserve;
 
-  // Two Life layouts share these; each branch fills them in.
-  const grouped = lifeGrouping.enabled;
   const WEEKS_PER_YEAR = 52;
-  // The current-week dot is always filled (solid) so it stands out even when the
-  // rest are ring outlines; other shapes are already filled.
-  const currentShape = dotStyle.shape === 'ring' ? 'circle' : dotStyle.shape;
   const pastDots = [];
   const futureDots = [];
+  const milestoneDots = [];
   let currentDot = null;
   const decadeLabels = [];
-  let gridWidth: number;
-  let gridHeight: number;
-  let startX: number;
-  let startY: number;
 
-  if (grouped) {
-    // === Year-blocks layout: each year is its own 52-week block, tiled. ===
-    // 'square' → 8×7 (last row holds 4); 'tall' → 4×13 (exact, no partial row).
+  // Map each highlighted week index → its milestone color (later milestones win
+  // on overlap). A milestone fills [start..end], where end is the current week
+  // when `ongoing`, the end date's week when set, or just the start week.
+  const milestoneColorByWeek = new Map<number, string>();
+  const weekOf = (dateStr: string) =>
+    Math.floor((new Date(dateStr).getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 7));
+  for (const m of milestones) {
+    const s = weekOf(m.start);
+    const e = m.ongoing ? weeksLived : m.end ? weekOf(m.end) : s;
+    const lo = Math.max(0, Math.min(s, e));
+    const hi = Math.min(TOTAL_DOTS - 1, Math.max(s, e));
+    for (let i = lo; i <= hi; i++) milestoneColorByWeek.set(i, m.color);
+  }
+
+  // === Year-blocks layout: each year is its own 52-week block, tiled. ===
+  // 'square' → 8×7 (corners removed); 'tall' → 4×13 (exact, no partial row).
+  let gridWidth = 0;
+  let gridHeight = 0;
+  let startX = 0;
+  let startY = 0;
+  {
     const isTall = lifeGrouping.blockShape === 'tall';
     const BLOCK_COLS = isTall ? 4 : 8;
     const BLOCK_ROWS = isTall ? 13 : 7;
@@ -216,12 +231,16 @@ export default function LifeView({
       const cy = bRow * (blockH + blockGap) + iRow * (dotSize + innerGap) + dotSize / 2;
       const radius = dotSize / 2;
 
-      if (i < weeksLived) {
-        pastDots.push(dotSvgElement({ keyId: `past-${i}`, cx, cy, radius, color: colors.past, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth }));
-      } else if (i === weeksLived) {
-        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: currentShape, ringWidth: dotStyle.ringWidth });
+      if (i === weeksLived) {
+        // Current week — always a filled dot so it stands out among the rings.
+        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: 'circle' });
+      } else if (milestoneColorByWeek.has(i)) {
+        // Milestone week — filled in its accent color.
+        milestoneDots.push(dotSvgElement({ keyId: `ms-${i}`, cx, cy, radius, color: milestoneColorByWeek.get(i)!, shape: 'circle' }));
+      } else if (i < weeksLived) {
+        pastDots.push(dotSvgElement({ keyId: `past-${i}`, cx, cy, radius, color: colors.past, shape: 'ring', ringWidth: dotStyle.ringWidth }));
       } else {
-        futureDots.push(dotSvgElement({ keyId: `future-${i}`, cx, cy, radius, color: colors.future, shape: dotStyle.shape, opacity: dotStyle.futureOpacity, ringWidth: dotStyle.ringWidth }));
+        futureDots.push(dotSvgElement({ keyId: `future-${i}`, cx, cy, radius, color: colors.future, shape: 'ring', opacity: dotStyle.futureOpacity, ringWidth: dotStyle.ringWidth }));
       }
     }
 
@@ -248,44 +267,17 @@ export default function LifeView({
         );
       }
     }
-  } else {
-    // === Continuous aspect-fit grid (the classic single grid). ===
-    const outputRatio = availableWidth / gridAreaHeight;
-    const estimatedCols = Math.sqrt(TOTAL_DOTS * outputRatio);
-    const cols = Math.max(40, Math.floor(estimatedCols));
-    const rows = Math.ceil(TOTAL_DOTS / cols);
-
-    const dotSizeFromWidth = availableWidth / (cols + (cols - 1) * layout.dotSpacing);
-    const dotSizeFromHeight = gridAreaHeight / (rows + (rows - 1) * layout.dotSpacing);
-    const dotSize = Math.max(2, Math.floor(Math.min(dotSizeFromWidth, dotSizeFromHeight) * gridScale));
-    const gap = Math.max(1, Math.floor(dotSize * layout.dotSpacing));
-
-    gridWidth = cols * dotSize + (cols - 1) * gap;
-    gridHeight = rows * dotSize + (rows - 1) * gap;
-
-    startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
-    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
-
-    for (let i = 0; i < TOTAL_DOTS; i++) {
-      const row = Math.floor(i / cols);
-      const col = i % cols;
-      const cx = col * (dotSize + gap) + dotSize / 2;
-      const cy = row * (dotSize + gap) + dotSize / 2;
-      const radius = dotSize / 2;
-
-      if (i < weeksLived) {
-        pastDots.push(dotSvgElement({ keyId: `past-${i}`, cx, cy, radius, color: colors.past, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth }));
-      } else if (i === weeksLived) {
-        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: currentShape, ringWidth: dotStyle.ringWidth });
-      } else {
-        futureDots.push(dotSvgElement({ keyId: `future-${i}`, cx, cy, radius, color: colors.future, shape: dotStyle.shape, opacity: dotStyle.futureOpacity, ringWidth: dotStyle.ringWidth }));
-      }
-    }
   }
 
-  // Footer stats — pinned a fixed distance above the bottom margin (independent
-  // of the grid), so the text is always in the same place.
-  const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
+  // Footer percentages — pinned a fixed distance above the bottom margin
+  // (independent of the grid), so the lines are always in the same place.
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1).getTime();
+  const monthPct = ((today.getTime() - monthStart) / (monthEnd - monthStart)) * 100;
+  const yearStart = new Date(today.getFullYear(), 0, 1).getTime();
+  const yearEnd = new Date(today.getFullYear() + 1, 0, 1).getTime();
+  const yearPct = ((today.getTime() - yearStart) / (yearEnd - yearStart)) * 100;
+  const statsY = height - SAFE_AREA_BOTTOM - footerBlockH;
 
   return (
     <div
@@ -328,14 +320,15 @@ export default function LifeView({
         }}
       >
         {pastDots}
-        {currentDot}
         {futureDots}
+        {milestoneDots}
+        {currentDot}
       </svg>
 
       {/* Decade labels */}
       {decadeLabels}
 
-      {/* Stats Footer */}
+      {/* Stats Footer — three small stacked lines */}
       {typography.statsVisible && (
         <div
           style={{
@@ -344,14 +337,24 @@ export default function LifeView({
             left: '0px',
             width: '100%',
             display: 'flex',
-            justifyContent: 'center',
+            flexDirection: 'column',
             alignItems: 'center',
-            fontSize: `${footerFontSize}px`,
             fontFamily: typography?.fontFamily || 'monospace',
             color: colors?.text || '#888888',
           }}
         >
-          {lifePercentage}% to {LIFE_EXPECTANCY_YEARS}
+          {[
+            `${monthPct.toFixed(1)}% of month`,
+            `${yearPct.toFixed(1)}% of year`,
+            `${lifePercentage}% of life`,
+          ].map((line) => (
+            <div
+              key={line}
+              style={{ display: 'flex', height: `${footerLineH}px`, alignItems: 'center', fontSize: `${footerLineFont}px` }}
+            >
+              {line}
+            </div>
+          ))}
         </div>
       )}
 

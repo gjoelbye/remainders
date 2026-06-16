@@ -126,19 +126,11 @@ export function dotDivStyle(opts: {
   const base: Record<string, string | number> = { width: `${size}px`, height: `${size}px` };
   if (opacity !== 1) base.opacity = opacity;
 
-  switch (shape) {
-    case 'square':
-      return { ...base, backgroundColor: color, borderRadius: '0px' };
-    case 'rounded':
-      return { ...base, backgroundColor: color, borderRadius: `${size * 0.22}px` };
-    case 'diamond':
-      return { ...base, backgroundColor: color, borderRadius: '0px', transform: 'rotate(45deg)', transformOrigin: 'center' };
-    case 'ring':
-      return { ...base, backgroundColor: 'transparent', borderRadius: '50%', border: `${ringWidth}px solid ${color}` };
-    case 'circle':
-    default:
-      return { ...base, backgroundColor: color, borderRadius: '50%' };
+  if (shape === 'ring') {
+    return { ...base, backgroundColor: 'transparent', borderRadius: '50%', border: `${ringWidth}px solid ${color}` };
   }
+  // 'circle' — filled
+  return { ...base, backgroundColor: color, borderRadius: '50%' };
 }
 
 /**
@@ -156,41 +148,21 @@ export function dotSvgElement(opts: {
   keyId: string;
 }): ReactElement {
   const { cx, cy, radius: r, color, shape, opacity = 1, ringWidth = DEFAULT_RING_WIDTH, keyId } = opts;
-  const size = r * 2;
 
-  switch (shape) {
-    case 'square':
-      return <rect key={keyId} x={cx - r} y={cy - r} width={size} height={size} fill={color} fillOpacity={opacity} />;
-    case 'rounded':
-      return <rect key={keyId} x={cx - r} y={cy - r} width={size} height={size} rx={r * 0.44} fill={color} fillOpacity={opacity} />;
-    case 'diamond':
-      return (
-        <rect
-          key={keyId}
-          x={cx - r}
-          y={cy - r}
-          width={size}
-          height={size}
-          fill={color}
-          fillOpacity={opacity}
-          transform={`rotate(45 ${cx} ${cy})`}
-        />
-      );
-    case 'ring':
-      return (
-        <circle
-          key={keyId}
-          cx={cx}
-          cy={cy}
-          r={Math.max(0.5, r - ringWidth / 2)}
-          fill="none"
-          stroke={color}
-          strokeWidth={ringWidth}
-          strokeOpacity={opacity}
-        />
-      );
-    case 'circle':
-    default:
-      return <circle key={keyId} cx={cx} cy={cy} r={r} fill={color} fillOpacity={opacity} />;
+  if (shape === 'ring') {
+    return (
+      <circle
+        key={keyId}
+        cx={cx}
+        cy={cy}
+        r={Math.max(0.5, r - ringWidth / 2)}
+        fill="none"
+        stroke={color}
+        strokeWidth={ringWidth}
+        strokeOpacity={opacity}
+      />
+    );
   }
+  // 'circle' — filled
+  return <circle key={keyId} cx={cx} cy={cy} r={r} fill={color} fillOpacity={opacity} />;
 }

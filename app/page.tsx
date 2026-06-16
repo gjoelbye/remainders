@@ -17,6 +17,7 @@ import BirthDateInput from '@/components/BirthDateInput';
 import DeviceSelector from '@/components/DeviceSelector';
 import ThemeColorPicker from '@/components/ThemeColorPicker';
 import TextElementsEditor from '@/components/TextElementsEditor';
+import MilestonesEditor from '@/components/MilestonesEditor';
 import { PRESET_THEMES, getThemeByName } from '@/lib/themes';
 
 const WALLPAPER_PATH = '/api/wallpaper';
@@ -44,6 +45,7 @@ export default function Home() {
   const [colors, setColors] = useState(DEFAULT_CONFIG.colors);
   const [statsVisible, setStatsVisible] = useState(DEFAULT_CONFIG.typography.statsVisible);
   const [textElements, setTextElements] = useState(DEFAULT_CONFIG.textElements);
+  const [milestones, setMilestones] = useState(DEFAULT_CONFIG.milestones);
 
   const [lifeExpectancyYears, setLifeExpectancyYears] = useState(DEFAULT_CONFIG.lifeExpectancyYears);
   const [dotStyle, setDotStyle] = useState(DEFAULT_CONFIG.dotStyle);
@@ -84,6 +86,7 @@ export default function Home() {
     colors,
     typography: { ...typography, statsVisible },
     textElements,
+    milestones,
     layout,
     isMondayFirst,
     yearViewLayout,
@@ -118,6 +121,7 @@ export default function Home() {
     setTypography(cfg.typography);
     setLayout(cfg.layout);
     setTextElements(cfg.textElements);
+    setMilestones(cfg.milestones);
     setLifeExpectancyYears(cfg.lifeExpectancyYears);
     setDotStyle(cfg.dotStyle);
     setBackground(cfg.background);
@@ -163,7 +167,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     loaded, viewMode, birthDate, device, isMondayFirst, yearViewLayout, daysLayoutMode, timezone,
-    colors, statsVisible, textElements, lifeExpectancyYears, dotStyle, background, lifeGrouping, daysMonthGrouping,
+    colors, statsVisible, textElements, milestones, lifeExpectancyYears, dotStyle, background, lifeGrouping, daysMonthGrouping,
     widgetSpace, skyline, skylineBaseline, gridScale, gridOffsetY, gridCols,
   ]);
 
@@ -313,28 +317,16 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className={lbl}>Layout</label>
+                  <label className={lbl}>Block shape</label>
                   <div className="flex gap-2">
-                    <button onClick={() => setLifeGrouping((p) => ({ ...p, enabled: false }))} className={segBtn(!lifeGrouping.enabled)}>Continuous</button>
-                    <button onClick={() => setLifeGrouping((p) => ({ ...p, enabled: true }))} className={segBtn(lifeGrouping.enabled)}>Year blocks</button>
+                    <button onClick={() => setLifeGrouping((p) => ({ ...p, blockShape: 'square' }))} className={segBtn(lifeGrouping.blockShape === 'square')}>Square</button>
+                    <button onClick={() => setLifeGrouping((p) => ({ ...p, blockShape: 'tall' }))} className={segBtn(lifeGrouping.blockShape === 'tall')}>4×13</button>
                   </div>
                 </div>
-
-                {lifeGrouping.enabled && (
-                  <>
-                    <div className="space-y-2">
-                      <label className={lbl}>Block shape</label>
-                      <div className="flex gap-2">
-                        <button onClick={() => setLifeGrouping((p) => ({ ...p, blockShape: 'square' }))} className={segBtn(lifeGrouping.blockShape === 'square')}>Square</button>
-                        <button onClick={() => setLifeGrouping((p) => ({ ...p, blockShape: 'tall' }))} className={segBtn(lifeGrouping.blockShape === 'tall')}>4×13</button>
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" checked={lifeGrouping.decadeLabels} onChange={(e) => setLifeGrouping((p) => ({ ...p, decadeLabels: e.target.checked }))} className="w-4 h-4" />
-                      <span className={lbl}>Show decade labels</span>
-                    </label>
-                  </>
-                )}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={lifeGrouping.decadeLabels} onChange={(e) => setLifeGrouping((p) => ({ ...p, decadeLabels: e.target.checked }))} className="w-4 h-4" />
+                  <span className={lbl}>Show decade labels</span>
+                </label>
               </>
             )}
 
@@ -473,32 +465,29 @@ export default function Home() {
               </div>
             )}
 
-            {/* Dots */}
+            {/* Dots (ring outlines) */}
             <div className="space-y-2">
-              <label className={lbl}>Dot Shape</label>
-              <select value={dotStyle.shape} onChange={(e) => setDotStyle((p) => ({ ...p, shape: e.target.value as typeof p.shape }))} className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 text-white focus:border-white outline-none">
-                <option value="circle">Circle</option>
-                <option value="square">Square</option>
-                <option value="rounded">Rounded square</option>
-                <option value="diamond">Diamond</option>
-                <option value="ring">Ring (outline)</option>
-              </select>
+              <label className={lbl}>Ring thickness</label>
+              <div className="flex gap-2">
+                {([['Thin', 1.5], ['Medium', 2.5], ['Thick', 4]] as const).map(([label, w]) => (
+                  <button key={label} onClick={() => setDotStyle((p) => ({ ...p, ringWidth: w }))} className={segBtn(dotStyle.ringWidth === w)}>{label}</button>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <label className={lbl}>Fade future dots: {(dotStyle.futureOpacity * 100).toFixed(0)}%</label>
               <input type="range" min="0.1" max="1" step="0.05" value={dotStyle.futureOpacity} onChange={(e) => setDotStyle((p) => ({ ...p, futureOpacity: parseFloat(e.target.value) }))} className="w-full" />
             </div>
-            {dotStyle.shape === 'ring' && (
-              <div className="space-y-2">
-                <label className={lbl}>Ring thickness</label>
-                <div className="flex gap-2">
-                  {([['Thin', 1.5], ['Medium', 2.5], ['Thick', 4]] as const).map(([label, w]) => (
-                    <button key={label} onClick={() => setDotStyle((p) => ({ ...p, ringWidth: w }))} className={segBtn(dotStyle.ringWidth === w)}>{label}</button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Milestones (life view) */}
+          {viewMode === 'life' && (
+            <div className={card}>
+              <h2 className={sectionTitle}>Milestones</h2>
+              <p className="text-xs text-neutral-500">Fill a span of weeks in an accent color — a date, a range, or ongoing until now.</p>
+              <MilestonesEditor milestones={milestones} onChange={setMilestones} />
+            </div>
+          )}
 
           {/* Text */}
           <div className={card}>
@@ -527,7 +516,7 @@ export default function Home() {
                   <input type="range" min="-0.15" max="0.15" step="0.005" value={gridOffsetY} onChange={(e) => setGridOffsetY(parseFloat(e.target.value))} className="w-full" />
                 </div>
 
-                {viewMode === 'life' && lifeGrouping.enabled && (
+                {viewMode === 'life' && (
                   <div className="space-y-2">
                     <label className={lbl}>Year-block columns: {gridCols === 0 ? 'Auto' : gridCols}</label>
                     <input type="range" min="0" max="14" step="1" value={gridCols} onChange={(e) => setGridCols(parseInt(e.target.value))} className="w-full" />

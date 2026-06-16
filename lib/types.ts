@@ -56,22 +56,36 @@ export interface TextElement {
 }
 
 /**
- * Dot symbol shape for the wallpaper grid.
+ * Dot render mode. Grid weeks are drawn as ring outlines; the current week and
+ * milestone weeks are drawn as filled circles so they stand out.
  */
-export type DotShape = 'circle' | 'square' | 'rounded' | 'diamond' | 'ring';
-
-export const DOT_SHAPES: DotShape[] = ['circle', 'square', 'rounded', 'diamond', 'ring'];
+export type DotShape = 'ring' | 'circle';
 
 /**
  * Per-dot rendering style.
  */
 export interface DotStyle {
-  /** Symbol shape */
-  shape: DotShape;
   /** Opacity applied to "future" dots (0-1) for a faded/shaded look */
   futureOpacity: number;
-  /** Stroke width in px used when shape === 'ring' */
+  /** Stroke width in px for the ring outlines */
   ringWidth: number;
+}
+
+/**
+ * A highlighted span of life-weeks — a personal milestone or "chapter".
+ * Rendered as filled dots in an accent color over the week grid.
+ */
+export interface Milestone {
+  /** Unique identifier */
+  id: string;
+  /** Start date (YYYY-MM-DD) */
+  start: string;
+  /** End date (YYYY-MM-DD); null for a single week, or when `ongoing` */
+  end: string | null;
+  /** If true, fill from `start` through the current week */
+  ongoing: boolean;
+  /** Fill color (hex) */
+  color: string;
 }
 
 /**
@@ -92,8 +106,6 @@ export interface BackgroundStyle {
  * Life-view dot grouping (the classic "life in weeks" 52-column layout).
  */
 export interface LifeGrouping {
-  /** Render each year as its own 52-week block, tiled in a grid */
-  enabled: boolean;
   /** Block shape: 'square' = 8×7 (square-ish), 'tall' = 4×13 */
   blockShape: 'square' | 'tall';
   /** Extra gap after each year row, in multiples of dot size */
@@ -154,6 +166,9 @@ export interface LocalConfig {
 
   /** Custom text elements */
   textElements: TextElement[];
+
+  /** Highlighted life-week spans (milestones / chapters) */
+  milestones: Milestone[];
 
   /** Layout preferences */
   layout: {
