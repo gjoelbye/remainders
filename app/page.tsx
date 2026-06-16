@@ -146,14 +146,7 @@ export default function Home() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const cfg = sanitizeConfig(JSON.parse(raw));
-        // Migration: the grid size/offset baseline was re-based, so the previous
-        // defaults (112% / −0.025) now mean neutral (100% / 0).
-        if (cfg.gridScale === 1.12) cfg.gridScale = 1;
-        if (cfg.gridOffsetY === -0.025) cfg.gridOffsetY = 0;
-        applyConfig(cfg);
-      }
+      if (raw) applyConfig(sanitizeConfig(JSON.parse(raw)));
     } catch {
       /* keep defaults */
     }
@@ -329,13 +322,6 @@ export default function Home() {
                   <input type="range" min="40" max="120" step="1" value={lifeExpectancyYears} onChange={(e) => setLifeExpectancyYears(parseInt(e.target.value))} className="w-full" />
                 </div>
 
-                <div className="space-y-2">
-                  <label className={lbl}>Block shape</label>
-                  <div className="flex gap-2">
-                    <button onClick={() => setLifeGrouping((p) => ({ ...p, blockShape: 'square' }))} className={segBtn(lifeGrouping.blockShape === 'square')}>Square</button>
-                    <button onClick={() => setLifeGrouping((p) => ({ ...p, blockShape: 'tall' }))} className={segBtn(lifeGrouping.blockShape === 'tall')}>4×13</button>
-                  </div>
-                </div>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={lifeGrouping.decadeLabels} onChange={(e) => setLifeGrouping((p) => ({ ...p, decadeLabels: e.target.checked }))} className="w-4 h-4" />
                   <span className={lbl}>Show decade labels</span>

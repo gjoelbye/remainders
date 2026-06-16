@@ -106,8 +106,6 @@ export interface BackgroundStyle {
  * Life-view dot grouping (the classic "life in weeks" 52-column layout).
  */
 export interface LifeGrouping {
-  /** Block shape: 'square' = 8×7 (square-ish), 'tall' = 4×13 */
-  blockShape: 'square' | 'tall';
   /** Extra gap after each year row, in multiples of dot size */
   yearGap: number;
   /** Extra gap after each decade (10 rows), in multiples of dot size */

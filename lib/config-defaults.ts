@@ -53,18 +53,18 @@ export const DEFAULT_CONFIG: LocalConfig = {
   lifeExpectancyYears: 84,
   dotStyle: { futureOpacity: 1, ringWidth: 1.5 },
   background: { mode: 'solid', from: '#2E3440', to: '#2E3440', angle: 180 },
-  lifeGrouping: { blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: true },
+  lifeGrouping: { yearGap: 0.5, decadeGap: 1.5, decadeLabels: true },
   daysMonthGrouping: false,
   widgetSpace: true,
   skyline: true,
-  skylineLights: false,
-  skylineBaseline: 0.2256,
+  skylineLights: true,
+  skylineBaseline: 0.24,
   // gridScale/gridOffsetY are relative to the baked-in baseline (see
-  // BASE_GRID_SCALE / BASE_GRID_OFFSET_Y), so 1 = 100% and 0 = the tuned position.
-  gridScale: 1,
-  gridOffsetY: 0,
+  // BASE_GRID_SCALE / BASE_GRID_OFFSET_Y); 1 = 100%, 0 = the tuned position.
+  gridScale: 1.2,
+  gridOffsetY: 0.01,
   gridCols: 0, // auto; the heuristic targets a clean corner-clip (84 → 8×11)
-  footerOffsetY: 0,
+  footerOffsetY: -0.08,
 };
 
 // --- small validation helpers ---
@@ -134,7 +134,6 @@ function sanitizeLifeGrouping(v: unknown): LifeGrouping {
   const d = obj(v);
   const def = DEFAULT_CONFIG.lifeGrouping;
   return {
-    blockShape: oneOf(d.blockShape, ['square', 'tall'] as const, def.blockShape),
     yearGap: num(d.yearGap, def.yearGap, 0, 5),
     decadeGap: num(d.decadeGap, def.decadeGap, 0, 10),
     decadeLabels: bool(d.decadeLabels, def.decadeLabels),

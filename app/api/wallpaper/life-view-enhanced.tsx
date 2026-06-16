@@ -87,7 +87,7 @@ export default function LifeView({
   dotStyle = { futureOpacity: 1, ringWidth: 2 },
   background,
   lifeExpectancyYears = 84, // default life expectancy
-  lifeGrouping = { blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
+  lifeGrouping = { yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
   widgetSpace = true,
   skyline = true,
   skylineLights = false,
@@ -156,23 +156,20 @@ export default function LifeView({
   }
 
   // === Year-blocks layout: each year is its own 52-week block, tiled. ===
-  // 'square' → 8×7 (corners removed); 'tall' → 4×13 (exact, no partial row).
   let gridWidth = 0;
   let gridHeight = 0;
   let startX = 0;
   let startY = 0;
   {
-    const isTall = lifeGrouping.blockShape === 'tall';
-    const BLOCK_COLS = isTall ? 4 : 8;
-    const BLOCK_ROWS = isTall ? 13 : 7;
+    const BLOCK_COLS = 8;
+    const BLOCK_ROWS = 7;
     const N = LIFE_EXPECTANCY_YEARS; // one block per year
 
-    // Ordered (row, col) for each of the 52 weeks within a block:
-    // 'tall'  → full 4×13;
-    // 'square'→ 8×7 with the 4 corners removed (rows of 6,8,8,8,8,8,6 = 52).
+    // Ordered (row, col) for each of the 52 weeks within a block: 8×7 with the
+    // 4 corners removed (rows of 6,8,8,8,8,8,6 = 52).
     const blockCells: Array<[number, number]> = [];
     for (let r = 0; r < BLOCK_ROWS; r++) {
-      const edge = !isTall && (r === 0 || r === BLOCK_ROWS - 1);
+      const edge = r === 0 || r === BLOCK_ROWS - 1;
       const cStart = edge ? 1 : 0;
       const cEnd = edge ? BLOCK_COLS - 1 : BLOCK_COLS;
       for (let c = cStart; c < cEnd; c++) blockCells.push([r, c]);
@@ -226,16 +223,20 @@ export default function LifeView({
     // Solve dot size from total demand in dot-size units on each axis.
     const wUnits = blockCols * BLOCK_COLS + INNER_SPACING * blockCols * (BLOCK_COLS - 1) + BLOCK_GAP_UNITS * (blockCols - 1);
     const hUnits = blockRows * BLOCK_ROWS + INNER_SPACING * blockRows * (BLOCK_ROWS - 1) + BLOCK_GAP_UNITS * (blockRows - 1);
-    const dotSize = Math.max(2, Math.floor(Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * BASE_GRID_SCALE * gridScale));
-    const innerGap = Math.max(1, Math.floor(dotSize * INNER_SPACING));
-    const blockGap = Math.max(2, Math.floor(dotSize * BLOCK_GAP_UNITS));
+    // Keep sizes fractional (no floor) so the zoom slider scales smoothly
+    // instead of plateauing on integer pixel steps.
+    const dotSize = Math.max(2, Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * BASE_GRID_SCALE * gridScale);
+    const innerGap = Math.max(1, dotSize * INNER_SPACING);
+    const blockGap = Math.max(2, dotSize * BLOCK_GAP_UNITS);
 
     const blockW = BLOCK_COLS * dotSize + (BLOCK_COLS - 1) * innerGap;
     const blockH = BLOCK_ROWS * dotSize + (BLOCK_ROWS - 1) * innerGap;
     gridWidth = blockCols * blockW + (blockCols - 1) * blockGap;
     gridHeight = blockRows * blockH + (blockRows - 1) * blockGap;
 
-    startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
+    // Always center on the screen (overflowing symmetrically when zoomed in),
+    // rather than pinning to the side padding.
+    startX = (width - gridWidth) / 2;
     startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * (BASE_GRID_OFFSET_Y + gridOffsetY);
 
     for (let i = 0; i < TOTAL_DOTS; i++) {
