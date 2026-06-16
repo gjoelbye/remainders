@@ -7,7 +7,7 @@
  * so the current-day progress is always up to date.
  */
 
-import { ImageResponse } from '@vercel/og';
+import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import { DEFAULT_CONFIG, sanitizeConfig } from '@/lib/config-defaults';
 import { decodeConfig } from '@/lib/config-url';
@@ -16,10 +16,12 @@ import type { LocalConfig } from '@/lib/types';
 import LifeView from './life-view-enhanced';
 import YearView from './year-view-enhanced';
 
-// @vercel/og's ImageResponse runs on the Edge runtime on Vercel (it fails in the
-// Node.js runtime there). The route is fully stateless and uses only Web APIs,
-// so Edge is the correct, working target.
-export const runtime = 'edge';
+// Rendering a full-resolution PNG with thousands of dots is memory/CPU-heavy —
+// it OOM/CPU-crashes Vercel's Edge runtime (128 MB). The Node.js runtime has the
+// headroom (≈1 GB), so we render there. The result is then CDN-cached until the
+// next local midnight (see Cache-Control), so it renders ~once per day per URL
+// and every other fetch is served from cache in a few ms.
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -87,12 +89,17 @@ export async function GET(request: NextRequest) {
 
     const imageResponse = new ImageResponse(view, { width, height });
 
-    // Always fetch a fresh render (no caching) so the current-day dot is current.
+    // Cache at the CDN until the next local midnight: the only thing that changes
+    // day-to-day is the current-day dot, so re-rendering more often is wasteful.
+    // Every fetch within the day is served from cache (fast, no re-render).
+    const secsToday = currentDate.getHours() * 3600 + currentDate.getMinutes() * 60 + currentDate.getSeconds();
+    const secsToMidnight = Math.max(60, 86400 - secsToday);
+
     return new Response(imageResponse.body, {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Cache-Control': `public, max-age=0, s-maxage=${secsToMidnight}, stale-while-revalidate=86400`,
       },
     });
   } catch (error) {

@@ -18,32 +18,34 @@
  * @returns Date object representing current time in the specified timezone
  */
 export function getDateInTimezone(timezone: string = 'UTC'): Date {
-  // Get current UTC time
   const now = new Date();
-  
-  // Use Intl API to get date parts in target timezone
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-  
-  const parts = formatter.formatToParts(now);
-  const dateParts: Record<string, string> = {};
-  
-  parts.forEach(({ type, value }) => {
-    dateParts[type] = value;
-  });
-  
-  // Construct date in target timezone
-  return new Date(
-    `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}:${dateParts.second}`
-  );
+  try {
+    // Use Intl API to get date parts in target timezone. Some runtimes have
+    // limited ICU and reject IANA timezones — fall back to machine time then.
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+
+    const dateParts: Record<string, string> = {};
+    for (const { type, value } of formatter.formatToParts(now)) {
+      dateParts[type] = value;
+    }
+
+    const d = new Date(
+      `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}:${dateParts.second}`
+    );
+    if (!Number.isNaN(d.getTime())) return d;
+  } catch {
+    /* unsupported timezone — fall back below */
+  }
+  return now;
 }
 
 /**
