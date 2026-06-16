@@ -57,10 +57,14 @@ export const DEFAULT_CONFIG: LocalConfig = {
   daysMonthGrouping: false,
   widgetSpace: true,
   skyline: true,
-  skylineBaseline: 0.24,
-  gridScale: 1.12,
-  gridOffsetY: -0.025,
+  skylineLights: false,
+  skylineBaseline: 0.2256,
+  // gridScale/gridOffsetY are relative to the baked-in baseline (see
+  // BASE_GRID_SCALE / BASE_GRID_OFFSET_Y), so 1 = 100% and 0 = the tuned position.
+  gridScale: 1,
+  gridOffsetY: 0,
   gridCols: 0, // auto; the heuristic targets a clean corner-clip (84 → 8×11)
+  footerOffsetY: 0,
 };
 
 // --- small validation helpers ---
@@ -235,10 +239,12 @@ export function sanitizeConfig(input: unknown): LocalConfig {
     daysMonthGrouping: bool(c.daysMonthGrouping, D.daysMonthGrouping),
     widgetSpace: bool(c.widgetSpace, D.widgetSpace),
     skyline: bool(c.skyline, D.skyline),
+    skylineLights: bool(c.skylineLights, D.skylineLights),
     skylineBaseline: num(c.skylineBaseline, D.skylineBaseline, 0.1, 0.4),
     gridScale: num(c.gridScale, D.gridScale, 0.5, 1.8),
     gridOffsetY: num(c.gridOffsetY, D.gridOffsetY, -0.25, 0.25),
     gridCols: Math.round(num(c.gridCols, D.gridCols, 0, 16)),
+    footerOffsetY: num(c.footerOffsetY, D.footerOffsetY, -0.25, 0.25),
   };
 
   if (bgImage) {

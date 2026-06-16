@@ -6,7 +6,7 @@
  */
 
 import { TextElement, BackgroundStyle } from '@/lib/types';
-import { buildBackgroundStyle, dotDivStyle, computeSafeAreaTop, skylineElement } from '@/lib/wallpaper-render';
+import { buildBackgroundStyle, dotDivStyle, computeSafeAreaTop, skylineElement, BASE_GRID_SCALE, BASE_GRID_OFFSET_Y } from '@/lib/wallpaper-render';
 import {
   calculateDaysLeftInYear,
   getCurrentDayOfYear,
@@ -49,12 +49,16 @@ interface YearViewProps {
   widgetSpace?: boolean;
   /** Render the Copenhagen skyline silhouette behind the clock */
   skyline?: boolean;
+  /** Fill the skyline windows with a warm glow */
+  skylineLights?: boolean;
   /** Skyline ground-line position as a fraction of height */
   skylineBaseline?: number;
-  /** Advanced: multiply the fitted dot/grid size (1 = auto fit) */
+  /** Advanced: grid size relative to the tuned baseline (1 = 100%) */
   gridScale?: number;
-  /** Advanced: nudge the grid vertically, as a fraction of height */
+  /** Advanced: nudge the grid vertically, relative to the tuned baseline */
   gridOffsetY?: number;
+  /** Advanced: raise (+) / lower (−) the footer text, fraction of height */
+  footerOffsetY?: number;
 }
 
 export default function YearView({
@@ -90,9 +94,11 @@ export default function YearView({
   daysMonthGrouping = false,
   widgetSpace = true,
   skyline = true,
-  skylineBaseline = 0.24,
+  skylineLights = false,
+  skylineBaseline = 0.2256,
   gridScale = 1,
   gridOffsetY = 0,
+  footerOffsetY = 0,
 }: YearViewProps) {
   // Year Logic
   const date = currentDate;
@@ -165,16 +171,16 @@ export default function YearView({
     // Calculate dot size
     const maxDotSizeH = availableWidth / COLS_PER_ROW;
     const maxDotSizeV = gridAreaHeight / (ROWS + 1);
-    const dotSize = Math.min(maxDotSizeH, maxDotSizeV) * 0.7 * gridScale; // Smaller dots
+    const dotSize = Math.min(maxDotSizeH, maxDotSizeV) * 0.7 * BASE_GRID_SCALE * gridScale; // Smaller dots
     const dotGap = dotSize * layout.dotSpacing * 0.5; // Tighter spacing
 
     const gridWidth = COLS_PER_ROW * (dotSize + dotGap) - dotGap;
     const gridHeight = ROWS * (dotSize + dotGap) - dotGap;
 
     const startX = paddingX + (availableWidth - gridWidth) / 2;
-    const startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
+    const startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * (BASE_GRID_OFFSET_Y + gridOffsetY);
     // Footer pinned a fixed distance above the bottom margin.
-    const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
+    const statsY = height - SAFE_AREA_BOTTOM - footerFontSize - height * footerOffsetY;
 
     // Create all dots
     const allDots = [];
@@ -248,7 +254,7 @@ export default function YearView({
           />
         )}
         {/* Copenhagen skyline behind the clock */}
-        {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX, baseline: skylineBaseline })}
+        {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX, baseline: skylineBaseline, lights: skylineLights })}
         <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%' }}>
           {allDots}
         </div>
@@ -340,7 +346,7 @@ export default function YearView({
   const maxMonthBlockHeight = gridAreaHeight / ROWS;
   const maxDotSizeV = maxMonthBlockHeight / 9; // Labels + 6 rows of dots + gaps
   
-  const dotSize = Math.min(maxDotSizeH, maxDotSizeV, cellWidth / 7, 20) * gridScale;
+  const dotSize = Math.min(maxDotSizeH, maxDotSizeV, cellWidth / 7, 20) * BASE_GRID_SCALE * gridScale;
   const dotGap = dotSize * layout.dotSpacing;
   const monthLabelSize = dotSize * 1.6;
 
@@ -349,9 +355,9 @@ export default function YearView({
 
   const gridHeight = ROWS * monthBlockHeight + (ROWS - 1) * rowGap;
 
-  const startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
+  const startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * (BASE_GRID_OFFSET_Y + gridOffsetY);
   // Footer pinned a fixed distance above the bottom margin.
-  const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
+  const statsY = height - SAFE_AREA_BOTTOM - footerFontSize - height * footerOffsetY;
 
   // Helper to get days in month
   const getDaysInMonth = (year: number, monthIndex: number) => {
@@ -493,7 +499,7 @@ export default function YearView({
         />
       )}
       {/* Copenhagen skyline behind the clock */}
-      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX, baseline: skylineBaseline })}
+      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX, baseline: skylineBaseline, lights: skylineLights })}
       <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%' }}>
         {monthCells}
       </div>

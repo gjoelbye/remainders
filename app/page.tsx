@@ -54,10 +54,12 @@ export default function Home() {
   const [daysMonthGrouping, setDaysMonthGrouping] = useState(DEFAULT_CONFIG.daysMonthGrouping);
   const [widgetSpace, setWidgetSpace] = useState(DEFAULT_CONFIG.widgetSpace);
   const [skyline, setSkyline] = useState(DEFAULT_CONFIG.skyline);
+  const [skylineLights, setSkylineLights] = useState(DEFAULT_CONFIG.skylineLights);
   const [skylineBaseline, setSkylineBaseline] = useState(DEFAULT_CONFIG.skylineBaseline);
   const [gridScale, setGridScale] = useState(DEFAULT_CONFIG.gridScale);
   const [gridOffsetY, setGridOffsetY] = useState(DEFAULT_CONFIG.gridOffsetY);
   const [gridCols, setGridCols] = useState(DEFAULT_CONFIG.gridCols);
+  const [footerOffsetY, setFooterOffsetY] = useState(DEFAULT_CONFIG.footerOffsetY);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Fields with no UI control (kept at defaults, round-tripped)
@@ -99,10 +101,12 @@ export default function Home() {
     daysMonthGrouping,
     widgetSpace,
     skyline,
+    skylineLights,
     skylineBaseline,
     gridScale,
     gridOffsetY,
     gridCols,
+    footerOffsetY,
     ...(backgroundImage ? { backgroundImage } : {}),
   });
 
@@ -129,10 +133,12 @@ export default function Home() {
     setDaysMonthGrouping(cfg.daysMonthGrouping);
     setWidgetSpace(cfg.widgetSpace);
     setSkyline(cfg.skyline);
+    setSkylineLights(cfg.skylineLights);
     setSkylineBaseline(cfg.skylineBaseline);
     setGridScale(cfg.gridScale);
     setGridOffsetY(cfg.gridOffsetY);
     setGridCols(cfg.gridCols);
+    setFooterOffsetY(cfg.footerOffsetY);
     setBackgroundImage(cfg.backgroundImage);
   };
 
@@ -140,7 +146,14 @@ export default function Home() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) applyConfig(sanitizeConfig(JSON.parse(raw)));
+      if (raw) {
+        const cfg = sanitizeConfig(JSON.parse(raw));
+        // Migration: the grid size/offset baseline was re-based, so the previous
+        // defaults (112% / −0.025) now mean neutral (100% / 0).
+        if (cfg.gridScale === 1.12) cfg.gridScale = 1;
+        if (cfg.gridOffsetY === -0.025) cfg.gridOffsetY = 0;
+        applyConfig(cfg);
+      }
     } catch {
       /* keep defaults */
     }
@@ -168,7 +181,7 @@ export default function Home() {
   }, [
     loaded, viewMode, birthDate, device, isMondayFirst, yearViewLayout, daysLayoutMode, timezone,
     colors, statsVisible, textElements, milestones, lifeExpectancyYears, dotStyle, background, lifeGrouping, daysMonthGrouping,
-    widgetSpace, skyline, skylineBaseline, gridScale, gridOffsetY, gridCols,
+    widgetSpace, skyline, skylineLights, skylineBaseline, gridScale, gridOffsetY, gridCols, footerOffsetY,
   ]);
 
   const handleThemeChange = (name: string) => {
@@ -379,6 +392,13 @@ export default function Home() {
               <input type="checkbox" checked={skyline} onChange={(e) => setSkyline(e.target.checked)} className="w-4 h-4" />
               <span className={lbl}>Copenhagen skyline</span>
             </label>
+
+            {skyline && (
+              <label className="flex items-center gap-3 cursor-pointer pl-7">
+                <input type="checkbox" checked={skylineLights} onChange={(e) => setSkylineLights(e.target.checked)} className="w-4 h-4" />
+                <span className={lbl}>Lights on (lit windows)</span>
+              </label>
+            )}
           </div>
 
           {/* Device */}
@@ -516,6 +536,11 @@ export default function Home() {
                   <input type="range" min="-0.15" max="0.15" step="0.005" value={gridOffsetY} onChange={(e) => setGridOffsetY(parseFloat(e.target.value))} className="w-full" />
                 </div>
 
+                <div className="space-y-2">
+                  <label className={lbl}>Text position (raise / lower)</label>
+                  <input type="range" min="-0.12" max="0.12" step="0.005" value={footerOffsetY} onChange={(e) => setFooterOffsetY(parseFloat(e.target.value))} className="w-full" />
+                </div>
+
                 {viewMode === 'life' && (
                   <div className="space-y-2">
                     <label className={lbl}>Year-block columns: {gridCols === 0 ? 'Auto' : gridCols}</label>
@@ -539,7 +564,7 @@ export default function Home() {
                 )}
 
                 <button
-                  onClick={() => { setGridScale(1); setGridOffsetY(0); setGridCols(0); setSkylineBaseline(DEFAULT_CONFIG.skylineBaseline); }}
+                  onClick={() => { setGridScale(1); setGridOffsetY(0); setGridCols(0); setFooterOffsetY(0); setSkylineBaseline(DEFAULT_CONFIG.skylineBaseline); }}
                   className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 transition-colors text-xs uppercase tracking-widest"
                 >
                   Reset nudges

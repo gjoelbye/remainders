@@ -219,6 +219,9 @@ export interface LocalConfig {
   /** Render the Copenhagen skyline silhouette behind the clock */
   skyline: boolean;
 
+  /** Fill the skyline's windows with a warm glow ("lights on") */
+  skylineLights: boolean;
+
   /**
    * Vertical position of the skyline's ground line, as a fraction of screen
    * height (smaller = higher on screen). Tunes alignment with the iOS clock.
@@ -235,4 +238,7 @@ export interface LocalConfig {
 
   /** Force the number of Life year-block columns (0 = auto). */
   gridCols: number;
+
+  /** Raise (+) or lower (−) the footer text, as a fraction of screen height. */
+  footerOffsetY: number;
 }

@@ -7,7 +7,7 @@
  */
 
 import { TextElement, BackgroundStyle, LifeGrouping, Milestone } from '@/lib/types';
-import { buildBackgroundStyle, dotSvgElement, computeSafeAreaTop, skylineElement } from '@/lib/wallpaper-render';
+import { buildBackgroundStyle, dotSvgElement, computeSafeAreaTop, skylineElement, BASE_GRID_SCALE, BASE_GRID_OFFSET_Y } from '@/lib/wallpaper-render';
 
 interface LifeViewProps {
   width: number;
@@ -44,14 +44,18 @@ interface LifeViewProps {
   widgetSpace?: boolean;
   /** Render the Copenhagen skyline silhouette behind the clock */
   skyline?: boolean;
+  /** Fill the skyline windows with a warm glow */
+  skylineLights?: boolean;
   /** Skyline ground-line position as a fraction of height */
   skylineBaseline?: number;
-  /** Advanced: multiply the fitted dot/grid size (1 = auto fit) */
+  /** Advanced: grid size relative to the tuned baseline (1 = 100%) */
   gridScale?: number;
-  /** Advanced: nudge the grid vertically, as a fraction of height */
+  /** Advanced: nudge the grid vertically, relative to the tuned baseline */
   gridOffsetY?: number;
   /** Advanced: force the number of year-block columns (0 = auto) */
   gridCols?: number;
+  /** Advanced: raise (+) / lower (−) the footer text, fraction of height */
+  footerOffsetY?: number;
 }
 
 export default function LifeView({
@@ -86,10 +90,12 @@ export default function LifeView({
   lifeGrouping = { blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
   widgetSpace = true,
   skyline = true,
-  skylineBaseline = 0.24,
+  skylineLights = false,
+  skylineBaseline = 0.2256,
   gridScale = 1,
   gridOffsetY = 0,
   gridCols = 0,
+  footerOffsetY = 0,
 }: LifeViewProps) {
   // Life Logic
   const LIFE_EXPECTANCY_YEARS = lifeExpectancyYears;
@@ -220,7 +226,7 @@ export default function LifeView({
     // Solve dot size from total demand in dot-size units on each axis.
     const wUnits = blockCols * BLOCK_COLS + INNER_SPACING * blockCols * (BLOCK_COLS - 1) + BLOCK_GAP_UNITS * (blockCols - 1);
     const hUnits = blockRows * BLOCK_ROWS + INNER_SPACING * blockRows * (BLOCK_ROWS - 1) + BLOCK_GAP_UNITS * (blockRows - 1);
-    const dotSize = Math.max(2, Math.floor(Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * gridScale));
+    const dotSize = Math.max(2, Math.floor(Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * BASE_GRID_SCALE * gridScale));
     const innerGap = Math.max(1, Math.floor(dotSize * INNER_SPACING));
     const blockGap = Math.max(2, Math.floor(dotSize * BLOCK_GAP_UNITS));
 
@@ -230,7 +236,7 @@ export default function LifeView({
     gridHeight = blockRows * blockH + (blockRows - 1) * blockGap;
 
     startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
-    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
+    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * (BASE_GRID_OFFSET_Y + gridOffsetY);
 
     for (let i = 0; i < TOTAL_DOTS; i++) {
       const year = Math.floor(i / WEEKS_PER_YEAR);
@@ -287,7 +293,7 @@ export default function LifeView({
   const yearStart = new Date(today.getFullYear(), 0, 1).getTime();
   const yearEnd = new Date(today.getFullYear() + 1, 0, 1).getTime();
   const yearPct = ((today.getTime() - yearStart) / (yearEnd - yearStart)) * 100;
-  const statsY = height - SAFE_AREA_BOTTOM - footerBlockH;
+  const statsY = height - SAFE_AREA_BOTTOM - footerBlockH - height * footerOffsetY;
 
   return (
     <div
@@ -318,7 +324,7 @@ export default function LifeView({
         />
       )}
       {/* Copenhagen skyline behind the clock */}
-      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: SAFE_WIDTH_PADDING, baseline: skylineBaseline })}
+      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: SAFE_WIDTH_PADDING, baseline: skylineBaseline, lights: skylineLights })}
       {/* Main Grid SVG */}
       <svg
         width={gridWidth}

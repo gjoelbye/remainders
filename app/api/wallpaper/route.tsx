@@ -66,9 +66,11 @@ export async function GET(request: NextRequest) {
       backgroundImage: backgroundImageProp,
       widgetSpace: config.widgetSpace,
       skyline: config.skyline,
+      skylineLights: config.skylineLights,
       skylineBaseline: config.skylineBaseline,
       gridScale: config.gridScale,
       gridOffsetY: config.gridOffsetY,
+      footerOffsetY: config.footerOffsetY,
     };
 
     const view =

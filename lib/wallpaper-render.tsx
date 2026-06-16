@@ -37,6 +37,17 @@ export const WIDGET_SAFE_TOP_RATIO = 0.4;
 /** Fraction of the silhouette's solid base (ground) trimmed off the bottom. */
 const SKYLINE_BASE_CROP = 0.1;
 
+/** Warm window-glow color used when the skyline lights are turned on. */
+const SKYLINE_LIGHT_COLOR = '#F4C77B';
+
+/**
+ * Dialed-in layout baseline. The grid-size slider treats BASE_GRID_SCALE as
+ * 100% and the vertical-position slider treats BASE_GRID_OFFSET_Y as 0, so the
+ * tuned default look reads as neutral while still being adjustable both ways.
+ */
+export const BASE_GRID_SCALE = 1.12;
+export const BASE_GRID_OFFSET_Y = -0.025;
+
 /**
  * Copenhagen skyline silhouette behind the clock, tinted with a theme color so
  * it matches every palette. Inset by `sidePadding` so it shares the grid's even
@@ -54,9 +65,11 @@ export function skylineElement(opts: {
   sidePadding: number;
   /** ground-line position as a fraction of height (smaller = higher) */
   baseline: number;
+  /** fill the building windows with a warm glow */
+  lights?: boolean;
   opacity?: number;
 }): ReactElement {
-  const { width, height, color, sidePadding, baseline, opacity = 1 } = opts;
+  const { width, height, color, sidePadding, baseline, lights = false, opacity = 1 } = opts;
   const visibleH = COPENHAGEN_SKYLINE.height * (1 - SKYLINE_BASE_CROP);
   const aspect = COPENHAGEN_SKYLINE.width / visibleH;
   const w = width - sidePadding * 2;
@@ -71,6 +84,8 @@ export function skylineElement(opts: {
       style={{ position: 'absolute', left: `${sidePadding}px`, top: `${top}px`, overflow: 'hidden' }}
     >
       <path d={COPENHAGEN_SKYLINE.path} fill={color} fillRule="evenodd" fillOpacity={opacity} />
+      {/* Lit windows painted on top of the silhouette, exactly over the holes. */}
+      {lights && <path d={COPENHAGEN_SKYLINE.windowsPath} fill={SKYLINE_LIGHT_COLOR} fillRule="evenodd" />}
     </svg>
   );
 }
