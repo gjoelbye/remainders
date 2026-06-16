@@ -3,8 +3,8 @@
  *
  * The wallpaper config travels in the URL (/api/wallpaper?c=<base64url>) so the
  * app is fully stateless and Vercel-friendly (no filesystem, no database). These
- * helpers run in both the browser (editor) and Node (route) — they avoid Buffer
- * and rely on the global btoa/atob/TextEncoder/TextDecoder available in both.
+ * helpers run in both the browser (editor) and the Edge runtime (route) — they
+ * avoid Buffer and rely on the global btoa/atob/TextEncoder/TextDecoder.
  */
 
 import type { LocalConfig } from './types';

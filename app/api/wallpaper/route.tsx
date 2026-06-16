@@ -16,7 +16,10 @@ import type { LocalConfig } from '@/lib/types';
 import LifeView from './life-view-enhanced';
 import YearView from './year-view-enhanced';
 
-export const runtime = 'nodejs';
+// @vercel/og's ImageResponse runs on the Edge runtime on Vercel (it fails in the
+// Node.js runtime there). The route is fully stateless and uses only Web APIs,
+// so Edge is the correct, working target.
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
