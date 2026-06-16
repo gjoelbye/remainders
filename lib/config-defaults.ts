@@ -61,10 +61,10 @@ export const DEFAULT_CONFIG: LocalConfig = {
   skylineBaseline: 0.24,
   // gridScale/gridOffsetY are relative to the baked-in baseline (see
   // BASE_GRID_SCALE / BASE_GRID_OFFSET_Y); 1 = 100%, 0 = the tuned position.
-  gridScale: 1.0,
-  gridOffsetY: 0.0,
+  gridScale: 1.2,
+  gridOffsetY: 0.01,
   gridCols: 0, // auto; the heuristic targets a clean corner-clip (84 → 8×11)
-  footerOffsetY: -0.085,
+  footerOffsetY: -0.08,
 };
 
 // --- small validation helpers ---
