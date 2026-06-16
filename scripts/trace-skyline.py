@@ -56,20 +56,26 @@ def main():
     black = (R < 110) & (G < 110) & (B < 110)
     white = (R > 175) & (G > 175) & (B > 175)
     red = (R >= 120) & (R - G > 55) & (R - B > 40) & (G < 150)
+    green = (G >= 90) & (G - R > 30) & (G - B > 30)   # the flag cross (marker)
 
     # --- flag: one shared boundary (the red field outline) ---
-    # Tracing red and white as two separate regions gives the cross its own
-    # boundary that doesn't follow the red, so it looks disconnected. Instead we
-    # lay the whole flag down as a solid WHITE backing (closing of red bridges
-    # the cross), then paint the precisely-traced red field on top. The only
-    # red/white edge is then the single red outline (a clean potrace spline);
-    # white shows through exactly in the cross. Dilate red by 1px so it meets
-    # the white at the true colour edge rather than the eroded threshold.
-    flag_region = close((red * 255).astype(np.uint8), 13)
-    flag_white = flag_region & ~black                              # solid backing
+    # The source marks the cross in GREEN, so the flag is exactly (red | green)
+    # with no background white to confuse it. Lay the whole flag down as a solid
+    # WHITE backing, then paint the precisely-traced red field on top: the cross
+    # (green) shows through as white, and the only red/white edge is the single
+    # red outline (a clean potrace spline) — naturally connected, no seam.
+    # A small closing of (red|green) fills the 1-2px anti-aliased red/green
+    # boundary so no dark gap shows; red is dilated 1px so it meets that edge.
+    flag_mask = red | green
+    # Solid white backing = the closed flag region. Do NOT subtract black here:
+    # shadowed green pixels on the waving flag read as "black" and would punch
+    # holes in the cross. The pole is left of the flag (not in red|green), so the
+    # closing never includes it. Closing also fills the 1-2px red/green seam.
+    flag_white = close((flag_mask * 255).astype(np.uint8), 7)
     red_dil = np.array(Image.fromarray((red * 255).astype(np.uint8))
                        .filter(ImageFilter.MaxFilter(3))) > 127
-    flag_red = red_dil & ~black                                     # red field on top
+    flag_red = red_dil                                             # red field on top
+    flag_region = flag_white                                       # (for windows mask)
 
     # --- windows: enclosed white inside the black buildings (flood fill sky) ---
     from collections import deque
@@ -86,10 +92,10 @@ def main():
             if 0 <= ny < h and 0 <= nx < w and white[ny, nx] and not vis[ny, nx]:
                 vis[ny, nx] = True
                 q.append((ny, nx))
-    windows = white & ~vis & ~flag_region   # exclude any flag white
+    windows = white & ~vis & ~flag_region   # exclude any flag area
 
     # --- reference bbox for the affine: full skyline content above ground band ---
-    content = black | red
+    content = black | red | green
     rf = content.mean(axis=1)
     ground_top = h
     for y in range(h - 1, -1, -1):
