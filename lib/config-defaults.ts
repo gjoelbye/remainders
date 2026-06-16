@@ -60,7 +60,7 @@ export const DEFAULT_CONFIG: LocalConfig = {
   skylineBaseline: 0.24,
   gridScale: 1.12,
   gridOffsetY: -0.025,
-  gridCols: 8, // 8 columns × 11 rows, corners removed = 84 year-blocks
+  gridCols: 0, // auto; the heuristic targets a clean corner-clip (84 → 8×11)
 };
 
 // --- small validation helpers ---

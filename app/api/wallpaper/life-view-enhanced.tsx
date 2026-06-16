@@ -177,7 +177,17 @@ export default function LifeView({
     // user pins a column count via Advanced settings.
     const availAR = availableWidth / gridAreaHeight;
     const rawCols = Math.sqrt(availAR * N * (BLOCK_ROWS / BLOCK_COLS));
-    const autoCols = Math.max(1, Math.min(N, Math.round(rawCols)));
+    // Between the two nearest column counts, prefer the one that wastes fewer
+    // cells (a cleaner, more symmetric corner-clip), tie-broken by closeness to
+    // the aspect-ideal. For 84 this picks 8 (8×11, spare 4) over 9 (9×10, spare
+    // 6) regardless of small footer/area changes.
+    const spareFor = (c: number) => c * Math.ceil(N / c) - N;
+    const lo = Math.max(1, Math.min(N, Math.floor(rawCols)));
+    const hi = Math.max(1, Math.min(N, Math.ceil(rawCols)));
+    const preferHi =
+      spareFor(hi) < spareFor(lo) ||
+      (spareFor(hi) === spareFor(lo) && Math.abs(hi - rawCols) < Math.abs(lo - rawCols));
+    const autoCols = preferHi ? hi : lo;
     const blockCols = gridCols > 0 ? Math.max(1, Math.min(N, gridCols)) : autoCols;
     const blockRows = Math.ceil(N / blockCols);
 
