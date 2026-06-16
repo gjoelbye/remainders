@@ -1,54 +1,46 @@
-# <img src="public/logo.png" width="35" align="center" /> Remainders
+# Memento Mori
 
-<img align="right" src="public/Year.webp" alt="Year View" width="32%" />
-
-**Memento Mori.** Your daily reminder to live intentionally. Generate time-aware wallpapers for your phone lock screen.
-
-[![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B)](https://ko-fi.com/ti003)
+A time-aware lock-screen wallpaper for your phone. Visualize the current year as a dot grid, or your whole life in weeks — the "today" marker stays current because the image re-renders fresh on every request.
 
 ## Features
 
-- **Year View** - Track daily progress with a dot grid
-- **Life View** - Visualize 80 years as 4,160 weeks
-- **Plugin System** - Create custom plugins (quotes, habits, moon phase, etc.)
-- **Device Support** - Optimized for various screen sizes
-- **Privacy First** - No data storage, generated on-the-fly
+- **Year view** — the current year (months or days)
+- **Life view** — your whole life in weeks (continuous grid, or year-blocks: square / 4×13)
+- **Customizable** — colors & gradients, dot shapes (circle / square / rounded / diamond / ring), life expectancy, custom text
+- **Stateless & private** — no accounts, no database; the config is encoded in the wallpaper URL
+- **Always current** — re-renders fresh on every request
 
-## How to Use
+## Usage
 
-**Quick Start:** You can run it locally for now (see setup below).
+1. Open the app (locally or your deployment).
+2. Configure your wallpaper.
+3. Copy the generated `/api/wallpaper?c=…` URL.
+4. Set it as your lock screen with a daily auto-update shortcut — see [AUTOMATION.md](AUTOMATION.md).
 
-**Full Customization:**
-1. Sign in with Google account 
-2. Go to Dashboard
-3. Configure wallpaper (view mode, birth date, theme, plugins)
-4. Copy your unique wallpaper URL
-5. [Set it as your lock screen](AUTOMATION.md) with daily auto-updates
+Each configuration has its own unique URL. Re-configuring produces a new URL to copy.
 
-## What's New
+## How it works
 
-- 🎨 Full customization and control  
-- 🔌 Full plugin development system & plugin marketplace ([see guide](lib/plugins/README.md))
-- 💾 Import/export configuration with plugins
+The editor keeps your settings in your browser (`localStorage`) and builds a URL like
+`https://<your-app>/api/wallpaper?c=<encoded-config>`. That endpoint decodes the config and renders a PNG
+at your device's native resolution with today's date — no server-side storage, so it deploys anywhere and
+updates daily on its own.
 
-## Upcoming Features
+## Run locally
 
-- Calendar sync
-- More built-in themes
-- More plugins
-- Support Desktop/Tablets/Big Displays
-- Advanced typography options
+Requires Node 18+.
 
-## Inspiration
+```bash
+npm install
+npm run dev          # http://localhost:3000
+```
 
-This project was inspired by [The Life Calendar](https://thelifecalendar.com/) — a beautiful visualization of life in weeks.
+No environment variables or database needed.
 
-## Thanks To
+## Deploy to Vercel
 
-- **[Alex Redwood](https://github.com/aredwood)** - An incredible supporter
-- **[HashemSalhi](https://github.com/HashemSalhi)** and **[Yazan03](https://github.com/Yazan03)**  - For finding security issues in the repo
+Fully stateless (no filesystem writes, no env vars) — deploys with zero configuration:
 
----
-
-**Support this project:** [Buy Me a Coffee](https://ko-fi.com/ti003) ☕  
-**Contribute:** Open an issue to discuss changes or submit PRs!
+1. Push this repo to GitHub.
+2. In Vercel, **Import Project** and select the repo (Next.js is auto-detected).
+3. Deploy, configure your wallpaper, and copy the generated URL to your phone.

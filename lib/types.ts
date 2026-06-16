@@ -1,426 +1,111 @@
 /**
- * Core TypeScript types for Remainders wallpaper generator
- * 
- * This file defines all shared interfaces and types used throughout the application.
- * Keeping types in a central location ensures consistency and makes the codebase
- * easier to maintain and understand.
+ * Core TypeScript types for the wallpaper generator.
  */
 
 /**
- * Represents information about a specific phone model
- * Used to generate wallpapers with the correct dimensions for each device
+ * Represents information about a specific phone model.
+ * Used to generate wallpapers with the correct dimensions for each device.
  */
 export interface DeviceModel {
   /** Brand name (e.g., "Apple", "Samsung", "Google") */
   brand: string;
-  
-  /** Full model name (e.g., "iPhone 15 Pro", "Galaxy S24 Ultra") */
+  /** Full model name (e.g., "iPhone 15 Pro") */
   model: string;
-  
   /** Screen width in pixels */
   width: number;
-  
   /** Screen height in pixels */
   height: number;
 }
 
 /**
- * View mode for the wallpaper visualization
- * - 'year': Shows only the current year (52 weeks)
- * - 'life': Shows entire life span (4160 weeks for 80 years)
+ * View mode for the wallpaper visualization.
+ * - 'year': current year
+ * - 'life': entire life span in weeks
  */
 export type ViewMode = 'year' | 'life';
 
 /**
- * Days layout mode for year view
- * - 'calendar': Follows week structure (Sun-Sat or Mon-Sun), respects isMondayFirst
- * - 'continuous': Lists all days continuously without week alignment
+ * Days layout mode for year view.
+ * - 'calendar': follows week structure (respects isMondayFirst)
+ * - 'continuous': lists all days continuously without week alignment
  */
 export type DaysLayoutMode = 'calendar' | 'continuous';
 
 /**
- * User's profile data stored in localStorage
- * Contains all information needed to generate a personalized wallpaper
- */
-export interface UserProfile {
-  /** Birth date in YYYY-MM-DD format (ISO 8601 date string) */
-  birthDate: string;
-  
-  /** Theme color in hex format (e.g., "#FF6B35") */
-  themeColor: string;
-  
-  /** Selected phone device information */
-  device: {
-    /** Device brand (e.g., "Apple", "Samsung") */
-    brand: string;
-    
-    /** Full model name matching DeviceModel.model */
-    modelName: string;
-    
-    /** Screen width in pixels */
-    width: number;
-    
-    /** Screen height in pixels */
-    height: number;
-  };
-  
-  /** Visualization mode: year or life view */
-  viewMode: ViewMode;
-  
-  /** Monday as first day of week (for year view) */
-  isMondayFirst?: boolean;
-  
-  /** Days layout mode: 'calendar' (week-aligned) or 'continuous' (no alignment) */
-  daysLayoutMode?: DaysLayoutMode;
-}
-
-/**
- * Parameters passed to the wallpaper generation API
- * These are extracted from UserProfile and sent as URL parameters
- */
-export interface WallpaperParams {
-  /** Birth date in YYYY-MM-DD format */
-  birthDate: string;
-  
-  /** Theme color in hex format (without # symbol for URL encoding) */
-  themeColor: string;
-  
-  /** Wallpaper width in pixels */
-  width: number;
-  
-  /** Wallpaper height in pixels */
-  height: number;
-  
-  /** View mode: 'year' or 'life' */
-  viewMode: ViewMode;
-  
-  /** Monday as first day of week (for year view) */
-  isMondayFirst?: boolean;
-  
-  /** Days layout mode: 'calendar' (week-aligned) or 'continuous' (no alignment) */
-  daysLayoutMode?: DaysLayoutMode;
-}
-
-/**
- * Text element that can be added to wallpaper
+ * Text element that can be added to the wallpaper.
  */
 export interface TextElement {
-  /** Unique identifier for the text element */
+  /** Unique identifier */
   id: string;
-  
   /** Text content to display */
   content: string;
-  
   /** Position X (percentage 0-100) */
   x: number;
-  
   /** Position Y (percentage 0-100) */
   y: number;
-  
   /** Font size in pixels */
   fontSize: number;
-  
   /** Font family name */
   fontFamily: string;
-  
   /** Text color in hex format */
   color: string;
-  
   /** Text alignment */
   align: 'left' | 'center' | 'right';
-  
   /** Whether element is visible */
   visible: boolean;
 }
 
 /**
- * Plugin configuration schema
+ * Dot symbol shape for the wallpaper grid.
  */
-export interface PluginConfig {
-  /** Plugin ID reference */
-  pluginId: string;
-  
-  /** Whether plugin is enabled */
+export type DotShape = 'circle' | 'square' | 'rounded' | 'diamond' | 'ring';
+
+export const DOT_SHAPES: DotShape[] = ['circle', 'square', 'rounded', 'diamond', 'ring'];
+
+/**
+ * Per-dot rendering style.
+ */
+export interface DotStyle {
+  /** Symbol shape */
+  shape: DotShape;
+  /** Opacity applied to "future" dots (0-1) for a faded/shaded look */
+  futureOpacity: number;
+  /** Stroke width in px used when shape === 'ring' */
+  ringWidth: number;
+}
+
+/**
+ * Background fill style. Gradients are linear/radial only (Satori does not
+ * support conic-gradient). The renderer builds a valid CSS string from this.
+ */
+export interface BackgroundStyle {
+  mode: 'solid' | 'linear' | 'radial';
+  /** Gradient start color (hex) */
+  from: string;
+  /** Gradient end color (hex) */
+  to: string;
+  /** Angle in degrees for linear gradients */
+  angle: number;
+}
+
+/**
+ * Life-view dot grouping (the classic "life in weeks" 52-column layout).
+ */
+export interface LifeGrouping {
+  /** Render each year as its own 52-week block, tiled in a grid */
   enabled: boolean;
-  
-  /** Plugin-specific configuration (JSON object) */
-  config: Record<string, any>;
+  /** Block shape: 'square' = 8×7 (square-ish), 'tall' = 4×13 */
+  blockShape: 'square' | 'tall';
+  /** Extra gap after each year row, in multiples of dot size */
+  yearGap: number;
+  /** Extra gap after each decade (10 rows), in multiples of dot size */
+  decadeGap: number;
+  /** Render decade labels (10, 20, …) above each decade block */
+  decadeLabels: boolean;
 }
 
 /**
- * Complete user configuration stored in Firestore
- */
-export interface UserConfig {
-  /** User ID from Firebase Auth */
-  userId: string;
-  
-  /** Unique username (lowercase) */
-  username: string;
-  
-  /** Birth date in YYYY-MM-DD format */
-  birthDate: string;
-  
-  /** View mode: year or life */
-  viewMode: ViewMode;
-  
-  /** Device dimensions */
-  device: {
-    brand: string;
-    modelName: string;
-    width: number;
-    height: number;
-  };
-  
-  /** Visual customization */
-  colors: {
-    background: string;
-    past: string;
-    current: string;
-    future: string;
-    text: string;
-  };
-  
-  /** Typography settings */
-  typography: {
-    fontFamily: string;
-    fontSize: number;
-    statsVisible: boolean;
-  };
-  
-  /** Custom text elements */
-  textElements: TextElement[];
-  
-  /** Layout preferences */
-  layout: {
-    topPadding: number;
-    bottomPadding: number;
-    sidePadding: number;
-    dotSpacing: number;
-  };
-  
-  /** Enabled plugins */
-  plugins: PluginConfig[];
-  
-  /** Monday as first day of week (for year view) */
-  isMondayFirst: boolean;
-  
-  /** Year view layout type: 'months' (default) or 'days' */
-  yearViewLayout?: 'months' | 'days';
-  
-  /** Days layout mode: 'calendar' (week-aligned) or 'continuous' (no alignment) */
-  daysLayoutMode?: DaysLayoutMode;
-  
-  /** User's timezone (IANA format) */
-  timezone?: string;
-  
-  /** User's subscription plan (denormalized for server-side rendering) */
-  plan?: UserPlan;
-
-  /** When the Pro plan expires (null = never expires) */
-  planExpiresAt?: Date | null;
-
-  /** Background image configuration */
-  backgroundImage?: BackgroundImage;
-
-  /** Last updated timestamp */
-  updatedAt: Date | null;
-
-  /** Cache key hash — set after wallpaper generation, cleared on config save */
-  cacheHash?: string | null;
-
-  /** Firebase Storage path to the cached PNG */
-  cachePath?: string | null;
-}
-
-/**
- * Plugin definition stored in Firestore marketplace
- */
-export interface Plugin {
-  /** Plugin unique ID */
-  id: string;
-  
-  /** Display name */
-  name: string;
-  
-  /** Short description */
-  description: string;
-  
-  /** Plugin author */
-  author: string;
-  
-  /** Version string (semver) */
-  version: string;
-  
-  /** Plugin code (JavaScript string) */
-  code?: string;
-  
-  /** Configuration schema (JSON Schema) */
-  configSchema: Record<string, any>;
-  
-  /** Admin approval status */
-  approved?: boolean;
-  
-  /** Privacy setting - if true, only author can see it */
-  isPrivate?: boolean;
-  
-  /** Author user ID */
-  authorId?: string;
-  
-  /** Download count */
-  downloads?: number;
-  
-  /** Plugin rating */
-  rating?: number;
-  
-  /** Creation timestamp */
-  createdAt?: Date;
-  
-  /** Last update timestamp */
-  updatedAt?: Date;
-  
-  /** Plugin execution function (not stored in Firestore) */
-  execute?: (ctx: PluginExecutionContext) => PluginRenderElement[];
-}
-
-/**
- * Plugin execution context passed to plugin code
- */
-export interface PluginExecutionContext {
-  /** Plugin configuration */
-  config: Record<string, any>;
-  
-  /** Wallpaper width */
-  width: number;
-  
-  /** Wallpaper height */
-  height: number;
-  
-  /** Color scheme */
-  colors?: {
-    background: string;
-    past: string;
-    current: string;
-    future: string;
-    text: string;
-  };
-  
-  /** Typography settings */
-  typography?: {
-    fontFamily: string;
-    fontSize: number;
-    statsVisible: boolean;
-  };
-  
-  /** Birth date */
-  birthDate?: string;
-  
-  /** View mode */
-  viewMode?: ViewMode;
-  
-  /** User's timezone (IANA format) */
-  timezone?: string;
-  
-  /** Current date in user's timezone */
-  currentDate?: Date;
-}
-
-/**
- * Render element returned by plugin
- */
-export interface PluginRenderElement {
-  /** Element type */
-  type: 'text' | 'rect' | 'circle' | 'line';
-  
-  /** Element content (for text) */
-  content?: string;
-  
-  /** X position */
-  x: number;
-  
-  /** Y position */
-  y: number;
-  
-  /** Width (for rect) */
-  width?: number;
-  
-  /** Height (for rect) */
-  height?: number;
-  
-  /** Radius (for circle) */
-  radius?: number;
-  
-  /** Font size (for text) */
-  fontSize?: number;
-  
-  /** Font family (for text) */
-  fontFamily?: string;
-  
-  /** Color */
-  color?: string;
-  
-  /** Text alignment */
-  align?: 'left' | 'center' | 'right';
-  
-  /** Max width for text wrapping */
-  maxWidth?: number;
-}
-
-/**
- * Plugin execution context passed to plugin code (deprecated, use PluginExecutionContext)
- */
-export interface PluginContext {
-  /** Current date in user's timezone */
-  currentDate: Date;
-  
-  /** User's birthdate */
-  birthDate: string;
-  
-  /** Device dimensions */
-  width: number;
-  height: number;
-  
-  /** View mode */
-  viewMode: ViewMode;
-  
-  /** Plugin settings */
-  settings: Record<string, any>;
-  
-  /** Utility functions available to plugin */
-  utils: {
-    /** Format date according to locale */
-    formatDate: (date: Date, format: string) => string;
-    
-    /** Get weeks lived */
-    getWeeksLived: (birthDate: string) => number;
-    
-    /** Get current day of year */
-    getCurrentDayOfYear: () => number;
-  };
-}
-
-/**
- * Plugin hook return type for calculation modifiers
- */
-export interface PluginCalculationResult {
-  /** Modified current date (for timezone plugins) */
-  currentDate?: Date;
-  
-  /** Additional data to pass to rendering */
-  data?: Record<string, any>;
-}
-
-/**
- * User subscription plan
- */
-export type UserPlan = 'free' | 'pro';
-
-/**
- * User role
- */
-export type UserRole = 'user' | 'admin';
-
-/**
- * Background image configuration for wallpaper
+ * Optional background image painted under the grid.
  */
 export interface BackgroundImage {
   /** Public URL to the image */
@@ -429,35 +114,84 @@ export interface BackgroundImage {
   type: 'preset' | 'upload';
   /** Preset ID (if type === 'preset') */
   presetId?: string;
-  /** Whether this preset is free (set when selecting, used for server-side enforcement) */
-  isFree?: boolean;
   /** Opacity 0-1 */
   opacity: number;
-  /** Firebase Storage path (for user uploads, used for deletion) */
-  storagePath?: string;
 }
 
 /**
- * Preset background available in the picker
+ * Local single-user configuration persisted to data/config.json.
  */
-export interface PresetBackground {
-  id: string;
-  name: string;
-  url: string;
-  thumbnailUrl?: string;
-  isFree: boolean;
-  category?: string;
-  storagePath?: string;
-  createdAt?: Date;
-}
+export interface LocalConfig {
+  /** Birth date in YYYY-MM-DD format */
+  birthDate: string;
 
-/**
- * Plugin hook return type for rendering extensions
- */
-export interface PluginRenderResult {
-  /** Additional SVG/HTML elements to render */
-  elements?: string;
-  
-  /** Modified color palette */
-  colors?: Partial<UserConfig['colors']>;
+  /** View mode: year or life */
+  viewMode: ViewMode;
+
+  /** Device dimensions */
+  device: {
+    brand: string;
+    modelName: string;
+    width: number;
+    height: number;
+  };
+
+  /** Visual customization */
+  colors: {
+    background: string;
+    past: string;
+    current: string;
+    future: string;
+    text: string;
+  };
+
+  /** Typography settings */
+  typography: {
+    fontFamily: string;
+    fontSize: number;
+    statsVisible: boolean;
+  };
+
+  /** Custom text elements */
+  textElements: TextElement[];
+
+  /** Layout preferences */
+  layout: {
+    topPadding: number;
+    bottomPadding: number;
+    sidePadding: number;
+    dotSpacing: number;
+  };
+
+  /** Monday as first day of week (for year view) */
+  isMondayFirst: boolean;
+
+  /** Year view layout type */
+  yearViewLayout: 'months' | 'days';
+
+  /** Days layout mode */
+  daysLayoutMode: DaysLayoutMode;
+
+  /** User's timezone (IANA format) */
+  timezone: string;
+
+  /** Optional background image painted under the grid */
+  backgroundImage?: BackgroundImage;
+
+  // --- Customization features ---
+
+  /** Life expectancy in years (Life view grid = years × 52 weeks) */
+  lifeExpectancyYears: number;
+
+  /** Dot symbol shape + shading */
+  dotStyle: DotStyle;
+
+  /** Background fill (solid color or gradient) */
+  background: BackgroundStyle;
+
+  /** Life-view year/decade grouping */
+  lifeGrouping: LifeGrouping;
+
+  /** Year "days" layout: separate dots into month blocks */
+  daysMonthGrouping: boolean;
 }

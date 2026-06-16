@@ -2,10 +2,11 @@
  * Year View Component - Enhanced with Customization Support
  * 
  * Renders 365/366 dots in a 12-month calendar grid showing current year progress.
- * Now supports custom colors, typography, layout, text elements, and plugin additions.
+ * Supports custom colors, gradients, dot shapes, typography, layout, and text elements.
  */
 
-import { TextElement } from '@/lib/types';
+import { TextElement, DotShape, BackgroundStyle } from '@/lib/types';
+import { buildBackgroundStyle, dotDivStyle } from '@/lib/wallpaper-render';
 import {
   calculateDaysLeftInYear,
   getCurrentDayOfYear,
@@ -37,10 +38,13 @@ interface YearViewProps {
     dotSpacing: number;
   };
   textElements?: TextElement[];
-  pluginElements?: any[];
   currentDate?: Date;
   timezone?: string;
   backgroundImage?: { url: string; opacity: number };
+  // Customization
+  dotStyle?: { shape: DotShape; futureOpacity: number; ringWidth: number };
+  background?: BackgroundStyle;
+  daysMonthGrouping?: boolean;
 }
 
 export default function YearView({
@@ -68,10 +72,12 @@ export default function YearView({
     dotSpacing: 0.7,
   },
   textElements = [],
-  pluginElements = [],
   currentDate = new Date(),
   timezone = 'UTC',
   backgroundImage,
+  dotStyle = { shape: 'circle', futureOpacity: 1, ringWidth: 2 },
+  background,
+  daysMonthGrouping = false,
 }: YearViewProps) {
   // Year Logic
   const date = currentDate;
@@ -101,56 +107,84 @@ export default function YearView({
     
     // Calculate grid dimensions - 14 days per row (2 weeks)
     const COLS_PER_ROW = 14;
-    
-    // Calculate offset for calendar mode
+
+    // Calculate offset for calendar mode (ignored when month-grouping)
     let startDayOffset = 0;
-    if (daysLayoutMode === 'calendar') {
+    if (daysLayoutMode === 'calendar' && !daysMonthGrouping) {
       // Get the day of week for January 1st
       const jan1 = new Date(currentYear, 0, 1);
       startDayOffset = jan1.getDay(); // 0 = Sunday
-      
+
       // If Monday first, adjust the offset
       if (isMondayFirst) {
         startDayOffset = startDayOffset === 0 ? 6 : startDayOffset - 1;
       }
     }
-    
+
+    // Month-grouping: lay each month as its own block of 14-col rows, with a
+    // blank row between months for clear visual separation.
+    const daysInMonthArr = Array.from({ length: 12 }, (_, m) => new Date(currentYear, m + 1, 0).getDate());
+    const rowsPerMonth = daysInMonthArr.map((d) => Math.ceil(d / COLS_PER_ROW));
+    const GAP_ROWS = 1;
+    const monthStartRow: number[] = [];
+    const monthFirstDay: number[] = []; // first day-of-year (1-based) per month
+    {
+      let rowAcc = 0;
+      let dayAcc = 1;
+      for (let m = 0; m < 12; m++) {
+        monthStartRow[m] = rowAcc;
+        monthFirstDay[m] = dayAcc;
+        rowAcc += rowsPerMonth[m] + GAP_ROWS;
+        dayAcc += daysInMonthArr[m];
+      }
+    }
+    const groupedRows = monthStartRow[11] + rowsPerMonth[11];
+
     const totalCells = startDayOffset + totalDays;
-    const ROWS = Math.ceil(totalCells / COLS_PER_ROW);
-    
+    const ROWS = daysMonthGrouping ? groupedRows : Math.ceil(totalCells / COLS_PER_ROW);
+
+    // Reserve a fixed band for the pinned footer; size/center the grid above it.
+    const footerFontSize = width * typography.fontSize;
+    const footerReserve = typography.statsVisible ? footerFontSize + height * 0.03 : 0;
+    const gridAreaHeight = SAFE_HEIGHT - footerReserve;
+
     // Calculate dot size
     const maxDotSizeH = availableWidth / COLS_PER_ROW;
-    const maxDotSizeV = SAFE_HEIGHT / (ROWS + 2); // +2 for stats spacing
+    const maxDotSizeV = gridAreaHeight / (ROWS + 1);
     const dotSize = Math.min(maxDotSizeH, maxDotSizeV) * 0.7; // Smaller dots
     const dotGap = dotSize * layout.dotSpacing * 0.5; // Tighter spacing
-    
-    const statsFontSize = dotSize * 0.8; // Much smaller footer text
-    const statsMargin = dotSize * 2;
-    
+
     const gridWidth = COLS_PER_ROW * (dotSize + dotGap) - dotGap;
     const gridHeight = ROWS * (dotSize + dotGap) - dotGap;
-    
+
     const startX = paddingX + (availableWidth - gridWidth) / 2;
-    const startY = SAFE_AREA_TOP + (SAFE_HEIGHT - gridHeight - statsMargin - statsFontSize) / 2;
-    const statsY = startY + gridHeight + statsMargin;
-    
+    const startY = Math.max(SAFE_AREA_TOP * 0.9, SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2);
+    // Footer pinned a fixed distance above the bottom margin.
+    const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
+
     // Create all dots
     const allDots = [];
     for (let day = 1; day <= totalDays; day++) {
-      let color;
-      if (day < currentDayOfYear) {
-        color = colors.past;
-      } else if (day === currentDayOfYear) {
-        color = colors.current;
+      const isFuture = day > currentDayOfYear;
+      const color = day < currentDayOfYear ? colors.past : day === currentDayOfYear ? colors.current : colors.future;
+
+      // Calculate position
+      let row: number;
+      let col: number;
+      if (daysMonthGrouping) {
+        let m = 11;
+        for (let k = 0; k < 12; k++) {
+          if (day < monthFirstDay[k] + daysInMonthArr[k]) { m = k; break; }
+        }
+        const dayInMonth = day - monthFirstDay[m]; // 0-based
+        row = monthStartRow[m] + Math.floor(dayInMonth / COLS_PER_ROW);
+        col = dayInMonth % COLS_PER_ROW;
       } else {
-        color = colors.future;
+        const cellIndex = day - 1 + startDayOffset;
+        row = Math.floor(cellIndex / COLS_PER_ROW);
+        col = cellIndex % COLS_PER_ROW;
       }
-      
-      // Calculate position with offset for first week
-      const cellIndex = day - 1 + startDayOffset;
-      const row = Math.floor(cellIndex / COLS_PER_ROW);
-      const col = cellIndex % COLS_PER_ROW;
-      
+
       allDots.push(
         <div
           key={`dot-${day}`}
@@ -158,10 +192,13 @@ export default function YearView({
             position: 'absolute',
             left: `${startX + col * (dotSize + dotGap)}px`,
             top: `${startY + row * (dotSize + dotGap)}px`,
-            width: `${dotSize}px`,
-            height: `${dotSize}px`,
-            borderRadius: '50%',
-            backgroundColor: color,
+            ...dotDivStyle({
+              size: dotSize,
+              color,
+              shape: dotStyle.shape,
+              opacity: isFuture ? dotStyle.futureOpacity : 1,
+              ringWidth: dotStyle.ringWidth,
+            }),
           }}
         />
       );
@@ -172,7 +209,7 @@ export default function YearView({
         style={{
           width: '100%',
           height: '100%',
-          backgroundColor: colors?.background || '#1a1a1a',
+          ...buildBackgroundStyle(colors, background),
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
@@ -210,7 +247,7 @@ export default function YearView({
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              fontSize: `${statsFontSize}px`,
+              fontSize: `${footerFontSize}px`,
               fontFamily: typography?.fontFamily || 'monospace',
             }}
           >
@@ -224,7 +261,7 @@ export default function YearView({
         {textElements.map((element) => {
           if (!element.visible || element.content == null) return null;
           
-          const style: any = {
+          const style: Record<string, string> = {
             position: 'absolute',
             left: `${element.x}%`,
             top: `${element.y}%`,
@@ -248,41 +285,6 @@ export default function YearView({
             </div>
           );
         })}
-
-        {/* Plugin-added Elements */}
-        {pluginElements.map((element, index) => {
-          if (element.type === 'text' && element.content != null) {
-            const contentStr = String(element.content || '').trim();
-            
-            if (!contentStr) return null;
-
-            const style: any = {
-              position: 'absolute',
-              left: `${element.x}px`,
-              top: `${element.y}px`,
-              fontSize: `${element.fontSize || 16}px`,
-              color: element.color || colors?.text || '#888888',
-              fontFamily: element.fontFamily || typography?.fontFamily || 'monospace',
-            };
-
-            if (element.align === 'center') {
-              style.transform = 'translateX(-50%)';
-            } else if (element.align === 'right') {
-              style.transform = 'translateX(-100%)';
-            }
-
-            if (typeof element.maxWidth === 'number') {
-              style.maxWidth = `${element.maxWidth}px`;
-            }
-            
-            return (
-              <div key={`plugin-${index}`} style={style}>
-                {contentStr}
-              </div>
-            );
-          }
-          return null;
-        })}
       </div>
     );
   }
@@ -302,20 +304,25 @@ export default function YearView({
   const SAFE_AREA_BOTTOM = height * layout.bottomPadding;
   const SAFE_HEIGHT = height - SAFE_AREA_TOP - SAFE_AREA_BOTTOM;
 
+  // Reserve a fixed band for the pinned footer; the grid is sized/centered above it.
+  const footerFontSize = width * typography.fontSize;
+  const footerReserve = typography.statsVisible ? footerFontSize + height * 0.03 : 0;
+  const gridAreaHeight = SAFE_HEIGHT - footerReserve;
+
   // Adjust side padding for narrower screens
-  const adjustedSidePadding = aspectRatio > 2.1 
-    ? Math.min(layout.sidePadding, 0.12) 
-    : aspectRatio > 2.0 
-    ? Math.min(layout.sidePadding, 0.15) 
+  const adjustedSidePadding = aspectRatio > 2.1
+    ? Math.min(layout.sidePadding, 0.12)
+    : aspectRatio > 2.0
+    ? Math.min(layout.sidePadding, 0.15)
     : layout.sidePadding;
-  
+
   const paddingX = width * adjustedSidePadding;
   const availableWidth = width - paddingX * 2;
   const cellWidth = availableWidth / COLUMNS;
 
   // Calculate optimal dot size based on available space (both horizontal and vertical)
   const maxDotSizeH = cellWidth / 8; // 7 dots + spacing
-  const maxMonthBlockHeight = SAFE_HEIGHT / ROWS;
+  const maxMonthBlockHeight = gridAreaHeight / ROWS;
   const maxDotSizeV = maxMonthBlockHeight / 9; // Labels + 6 rows of dots + gaps
   
   const dotSize = Math.min(maxDotSizeH, maxDotSizeV, cellWidth / 7, 20);
@@ -325,16 +332,13 @@ export default function YearView({
   const monthBlockHeight = monthLabelSize + dotSize + 6 * dotSize + 5 * dotGap;
   const rowGap = monthLabelSize * 1.0;
 
-  const statsFontSize = monthLabelSize;
-  const statsMargin = rowGap * 3.0; // Reduced for tighter spacing
-
   const gridHeight = ROWS * monthBlockHeight + (ROWS - 1) * rowGap;
-  const totalContentHeight = gridHeight + statsMargin + statsFontSize;
 
   // Ensure content doesn't go too high
-  const calculatedStartY = SAFE_AREA_TOP + (SAFE_HEIGHT - totalContentHeight) / 2;
+  const calculatedStartY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2;
   const startY = Math.max(SAFE_AREA_TOP * 0.9, calculatedStartY);
-  const statsY = startY + gridHeight + statsMargin;
+  // Footer pinned a fixed distance above the bottom margin.
+  const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
 
   // Helper to get days in month
   const getDaysInMonth = (year: number, monthIndex: number) => {
@@ -378,6 +382,7 @@ export default function YearView({
         const row = Math.floor(i / 7);
         const col = i % 7;
 
+        const isFuture = globalDayCounter > currentDayOfYear;
         dots.push(
           <div
             key={`dot-${monthIndex}-${i}`}
@@ -385,10 +390,13 @@ export default function YearView({
               position: 'absolute',
               left: `${col * (dotSize + dotGap)}px`,
               top: `${row * (dotSize + dotGap)}px`,
-              width: `${dotSize}px`,
-              height: `${dotSize}px`,
-              borderRadius: '50%',
-              backgroundColor: color,
+              ...dotDivStyle({
+                size: dotSize,
+                color,
+                shape: dotStyle.shape,
+                opacity: isFuture ? dotStyle.futureOpacity : 1,
+                ringWidth: dotStyle.ringWidth,
+              }),
             }}
           />
         );
@@ -447,7 +455,7 @@ export default function YearView({
       style={{
         width: '100%',
         height: '100%',
-        backgroundColor: colors?.background || '#1a1a1a',
+        ...buildBackgroundStyle(colors, background),
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -485,7 +493,7 @@ export default function YearView({
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            fontSize: `${statsFontSize}px`,
+            fontSize: `${footerFontSize}px`,
             fontFamily: typography?.fontFamily || 'monospace',
           }}
         >
@@ -498,8 +506,8 @@ export default function YearView({
       {/* Custom Text Elements */}
       {textElements.map((element) => {
         if (!element.visible || element.content == null) return null;
-        
-        const style: any = {
+
+        const style: Record<string, string> = {
           position: 'absolute',
           left: `${element.x}%`,
           top: `${element.y}%`,
@@ -523,42 +531,6 @@ export default function YearView({
             {String(element.content).trim()}
           </div>
         );
-      })}
-
-      {/* Plugin-added Elements */}
-      {pluginElements.map((element, index) => {
-        if (element.type === 'text' && element.content != null) {
-          const contentStr = String(element.content || '').trim();
-          
-          if (!contentStr) return null;
-
-          const style: any = {
-            position: 'absolute',
-            left: `${element.x}px`,
-            top: `${element.y}px`,
-            fontSize: `${element.fontSize || 16}px`,
-            color: element.color || colors?.text || '#888888',
-            fontFamily: element.fontFamily || typography?.fontFamily || 'monospace',
-          };
-
-          // Handle alignment
-          if (element.align === 'center') {
-            style.transform = 'translateX(-50%)';
-          } else if (element.align === 'right') {
-            style.transform = 'translateX(-100%)';
-          }
-
-          if (typeof element.maxWidth === 'number') {
-            style.maxWidth = `${element.maxWidth}px`;
-          }
-          
-          return (
-            <div key={`plugin-${index}`} style={style}>
-              {contentStr}
-            </div>
-          );
-        }
-        return null;
       })}
     </div>
   );

@@ -1,57 +1,100 @@
 /**
- * Wallpaper Generation API Route
- * Minimalist Dot-Grid Redesign
+ * Wallpaper Generation API Route (stateless).
+ *
+ * The full config is carried in the URL: GET /api/wallpaper?c=<base64url>.
+ * Nothing is stored server-side, so this works on Vercel and gives every
+ * generated wallpaper its own unique URL. It renders fresh on every request,
+ * so the current-day progress is always up to date.
  */
 
 import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
-import { YearView } from './year-view';
-import { LifeView } from './life-view';
-import { logWallpaperEvent } from '@/lib/firebase-server';
+import { DEFAULT_CONFIG, sanitizeConfig } from '@/lib/config-defaults';
+import { decodeConfig } from '@/lib/config-url';
+import { getDateInTimezone } from '@/lib/calcs';
+import type { LocalConfig } from '@/lib/types';
+import LifeView from './life-view-enhanced';
+import YearView from './year-view-enhanced';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = request.nextUrl;
-    const width = parseInt(searchParams.get('width') || '1170');
-    const height = parseInt(searchParams.get('height') || '2532');
-    const isMondayFirst = searchParams.get('isMondayFirst') === 'true' || searchParams.get('isMondayFirst') === '1';
-    const yearViewLayout = searchParams.get('yearViewLayout') === 'days' ? 'days' : 'months';
-    const daysLayoutMode = searchParams.get('daysLayoutMode') === 'calendar' ? 'calendar' : 'continuous';
-    const viewMode = searchParams.get('viewMode') || 'year';
-    const birthDate = searchParams.get('birthDate') || '';
-
-    let content;
-
-    if (viewMode === 'life' && birthDate) {
-      content = <LifeView width={width} height={height} birthDate={birthDate} />;
-    } else {
-      // Default to Year View
-      content = <YearView width={width} height={height} isMondayFirst={isMondayFirst} yearViewLayout={yearViewLayout} daysLayoutMode={daysLayoutMode} />;
+    // Config comes from the ?c= param; bad/missing input falls back to defaults.
+    const raw = request.nextUrl.searchParams.get('c');
+    let config: LocalConfig = DEFAULT_CONFIG;
+    if (raw) {
+      try {
+        config = sanitizeConfig(decodeConfig(raw));
+      } catch {
+        config = DEFAULT_CONFIG;
+      }
     }
 
-    // Compute seconds remaining until midnight UTC so the cache expires
-    // when the "current day" dot would change. Minimum 60s to avoid zero TTL.
-    const now = new Date();
-    const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-    const secondsUntilMidnight = Math.max(60, Math.floor((midnight.getTime() - now.getTime()) / 1000));
+    if (config.viewMode === 'life' && !config.birthDate) {
+      return new Response('Set your birth date to use Life View.', {
+        status: 400,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }
 
-    const imageResponse = new ImageResponse(content, { width, height });
+    const timezone = config.timezone || 'UTC';
+    const currentDate = getDateInTimezone(timezone);
 
-    // Fire-and-forget analytics
-    logWallpaperEvent('anonymous', null, viewMode);
+    // Render at the device's native resolution (e.g. iPhone 14 Pro = 1179×2556).
+    const width = config.device.width;
+    const height = config.device.height;
 
+    const backgroundImageProp = config.backgroundImage?.url
+      ? { url: config.backgroundImage.url, opacity: config.backgroundImage.opacity ?? 0.1 }
+      : undefined;
+
+    const viewProps = {
+      width,
+      height,
+      colors: config.colors,
+      typography: config.typography,
+      layout: config.layout,
+      textElements: config.textElements,
+      currentDate,
+      backgroundImage: backgroundImageProp,
+    };
+
+    const view =
+      config.viewMode === 'life'
+        ? LifeView({
+            ...viewProps,
+            birthDate: config.birthDate,
+            dotStyle: config.dotStyle,
+            background: config.background,
+            lifeExpectancyYears: config.lifeExpectancyYears,
+            lifeGrouping: config.lifeGrouping,
+          })
+        : YearView({
+            ...viewProps,
+            isMondayFirst: config.isMondayFirst || false,
+            yearViewLayout: config.yearViewLayout || 'months',
+            daysLayoutMode: config.daysLayoutMode || 'continuous',
+            timezone,
+            dotStyle: config.dotStyle,
+            background: config.background,
+            daysMonthGrouping: config.daysMonthGrouping,
+          });
+
+    const imageResponse = new ImageResponse(view, { width, height });
+
+    // Always fetch a fresh render (no caching) so the current-day dot is current.
     return new Response(imageResponse.body, {
+      status: 200,
       headers: {
         'Content-Type': 'image/png',
-        // Cache until midnight UTC — the image changes when the current-day dot moves.
-        // URL params form the cache key naturally (different configs = different URLs).
-        'Cache-Control': `public, s-maxage=${secondsUntilMidnight}, stale-while-revalidate=60`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
   } catch (error) {
     console.error('Error generating wallpaper:', error);
-    return new Response('Error generating wallpaper', { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    return new Response('Internal server error: ' + message, { status: 500 });
   }
 }

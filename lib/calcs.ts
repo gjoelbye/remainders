@@ -1,5 +1,5 @@
 /**
- * Calculation Functions for Remainders
+ * Calculation Functions
  * 
  * This module contains pure math functions for calculating life progress metrics.
  * All functions are well-documented with JSDoc comments explaining the math behind them.
@@ -17,7 +17,7 @@
  * @param timezone - IANA timezone string (e.g., 'America/New_York', 'Asia/Tokyo')
  * @returns Date object representing current time in the specified timezone
  */
-function getDateInTimezone(timezone: string = 'UTC'): Date {
+export function getDateInTimezone(timezone: string = 'UTC'): Date {
   // Get current UTC time
   const now = new Date();
   

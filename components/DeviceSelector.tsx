@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { DEVICE_MODELS, getAllBrands, getDevicesByBrand } from '@/lib/devices';
+import { getAllBrands, getDevicesByBrand } from '@/lib/devices';
 import { DeviceModel } from '@/lib/types';
 
 interface DeviceSelectorProps {

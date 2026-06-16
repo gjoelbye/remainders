@@ -42,11 +42,11 @@ export const PRESET_THEMES: Theme[] = [
   },
   {
     name: 'Nord',
-    description: 'Arctic, north-bluish color palette',
+    description: 'Arctic palette with a red current marker',
     colors: {
       background: '#2E3440',
       past: '#ECEFF4',
-      current: '#88C0D0',
+      current: '#FF3B30',
       future: '#4C566A',
       text: '#D8DEE9',
     },

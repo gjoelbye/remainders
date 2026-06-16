@@ -1,11 +1,13 @@
 /**
  * Life View Component - Enhanced with Customization Support
- * 
- * Renders 4,160 dots representing 80 years of life (1 dot = 1 week).
- * Now supports custom colors, typography, layout, text elements, and plugin additions.
+ *
+ * Renders lifeExpectancyYears × 52 dots (1 dot = 1 week). Supports custom
+ * colors, gradients, dot shapes, year/decade grouping, typography, layout,
+ * and text elements.
  */
 
-import { TextElement } from '@/lib/types';
+import { TextElement, DotShape, BackgroundStyle, LifeGrouping } from '@/lib/types';
+import { buildBackgroundStyle, dotSvgElement } from '@/lib/wallpaper-render';
 
 interface LifeViewProps {
   width: number;
@@ -30,9 +32,13 @@ interface LifeViewProps {
     dotSpacing: number;
   };
   textElements?: TextElement[];
-  pluginElements?: any[];
   currentDate?: Date;
   backgroundImage?: { url: string; opacity: number };
+  // Customization
+  dotStyle?: { shape: DotShape; futureOpacity: number; ringWidth: number };
+  background?: BackgroundStyle;
+  lifeExpectancyYears?: number;
+  lifeGrouping?: LifeGrouping;
 }
 
 export default function LifeView({
@@ -58,17 +64,20 @@ export default function LifeView({
     dotSpacing: 0.4,
   },
   textElements = [],
-  pluginElements = [],
   currentDate = new Date(),
   backgroundImage,
+  dotStyle = { shape: 'circle', futureOpacity: 1, ringWidth: 2 },
+  background,
+  lifeExpectancyYears = 84, // default life expectancy
+  lifeGrouping = { enabled: false, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
 }: LifeViewProps) {
   // Life Logic
-  const LIFE_EXPECTANCY_YEARS = 80;
+  const LIFE_EXPECTANCY_YEARS = lifeExpectancyYears;
   const birth = new Date(birthDate);
   const today = currentDate;
 
-  // Calculate total weeks (80 years × 52 weeks/year = 4,160 weeks)
-  const TOTAL_DOTS = 4160;
+  // Total weeks (years × 52 weeks/year)
+  const TOTAL_DOTS = Math.round(LIFE_EXPECTANCY_YEARS * 52);
 
   const diffTime = Math.abs(today.getTime() - birth.getTime());
   const weeksLived = Math.min(Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7)), TOTAL_DOTS);
@@ -76,80 +85,172 @@ export default function LifeView({
 
   // Layout Calculations with Aspect Ratio Support
   const aspectRatio = height / width;
-  
-  // Adapt safe zones based on aspect ratio
-  const SAFE_AREA_TOP = aspectRatio > 2.0 
-    ? height * Math.max(layout.topPadding, 0.28) 
+
+  const SAFE_AREA_TOP = aspectRatio > 2.0
+    ? height * Math.max(layout.topPadding, 0.28)
     : height * layout.topPadding;
   const SAFE_AREA_BOTTOM = height * layout.bottomPadding;
-  
-  // Reduce side padding on narrower screens
-  const adjustedSidePadding = aspectRatio > 2.1 
-    ? Math.min(layout.sidePadding, 0.08) 
-    : aspectRatio > 2.0 
-    ? Math.min(layout.sidePadding, 0.09) 
+
+  const adjustedSidePadding = aspectRatio > 2.1
+    ? Math.min(layout.sidePadding, 0.08)
+    : aspectRatio > 2.0
+    ? Math.min(layout.sidePadding, 0.09)
     : layout.sidePadding;
   const SAFE_WIDTH_PADDING = width * adjustedSidePadding;
 
   const availableWidth = width - SAFE_WIDTH_PADDING * 2;
   const availableHeight = height - SAFE_AREA_TOP - SAFE_AREA_BOTTOM;
 
-  // Calculate optimal grid dimensions
-  const outputRatio = availableWidth / availableHeight;
-  const estimatedCols = Math.sqrt(TOTAL_DOTS * outputRatio);
-  const cols = Math.max(40, Math.floor(estimatedCols)); // Minimum 40 columns
-  const rows = Math.ceil(TOTAL_DOTS / cols);
+  // Reserve a fixed band for the footer so the grid is sized/centered ABOVE it
+  // and the footer always sits the same distance from the bottom margin.
+  const footerFontSize = width * typography.fontSize;
+  const footerReserve = typography.statsVisible ? footerFontSize + height * 0.03 : 0;
+  const gridAreaHeight = availableHeight - footerReserve;
 
-  // Calculate dot size with spacing - ensure it fits both dimensions
-  const dotSizeFromWidth = availableWidth / (cols + (cols - 1) * layout.dotSpacing);
-  const dotSizeFromHeight = availableHeight / (rows + (rows - 1) * layout.dotSpacing);
-  const dotSize = Math.floor(Math.min(dotSizeFromWidth, dotSizeFromHeight));
-  const gap = Math.max(1, Math.floor(dotSize * layout.dotSpacing));
+  // Two Life layouts share these; each branch fills them in.
+  const grouped = lifeGrouping.enabled;
+  const WEEKS_PER_YEAR = 52;
+  const pastDots = [];
+  const futureDots = [];
+  let currentDot = null;
+  const decadeLabels = [];
+  let gridWidth: number;
+  let gridHeight: number;
+  let startX: number;
+  let startY: number;
 
-  // Grid dimensions
-  const gridWidth = cols * dotSize + (cols - 1) * gap;
-  const gridHeight = rows * dotSize + (rows - 1) * gap;
+  if (grouped) {
+    // === Year-blocks layout: each year is its own 52-week block, tiled. ===
+    // 'square' → 8×7 (last row holds 4); 'tall' → 4×13 (exact, no partial row).
+    const isTall = lifeGrouping.blockShape === 'tall';
+    const BLOCK_COLS = isTall ? 4 : 8;
+    const BLOCK_ROWS = isTall ? 13 : 7;
+    const N = LIFE_EXPECTANCY_YEARS; // one block per year
 
-  // Center the grid with bounds checking
-  const startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
-  const calculatedStartY = SAFE_AREA_TOP + (availableHeight - gridHeight) / 2;
-  const startY = Math.max(SAFE_AREA_TOP * 0.9, calculatedStartY);
+    // Ordered (row, col) for each of the 52 weeks within a block:
+    // 'tall'  → full 4×13;
+    // 'square'→ 8×7 with the 4 corners removed (rows of 6,8,8,8,8,8,6 = 52).
+    const blockCells: Array<[number, number]> = [];
+    for (let r = 0; r < BLOCK_ROWS; r++) {
+      const edge = !isTall && (r === 0 || r === BLOCK_ROWS - 1);
+      const cStart = edge ? 1 : 0;
+      const cEnd = edge ? BLOCK_COLS - 1 : BLOCK_COLS;
+      for (let c = cStart; c < cEnd; c++) blockCells.push([r, c]);
+    }
 
-  // Generate dots
-  const pastCircles = [];
-  const futureCircles = [];
-  let currentDotPosition = { cx: 0, cy: 0, radius: 0 };
+    // Outer block grid: pick block-columns so the overall grid matches the
+    // canvas aspect (corrected for the block's own ~8:7 aspect).
+    const availAR = availableWidth / gridAreaHeight;
+    const rawCols = Math.sqrt(availAR * N * (BLOCK_ROWS / BLOCK_COLS));
+    const blockCols = Math.max(1, Math.min(N, Math.round(rawCols)));
+    const blockRows = Math.ceil(N / blockCols);
 
-  for (let i = 0; i < TOTAL_DOTS; i++) {
-    const row = Math.floor(i / cols);
-    const col = i % cols;
-    const cx = col * (dotSize + gap) + dotSize / 2;
-    const cy = row * (dotSize + gap) + dotSize / 2;
-    const radius = dotSize / 2;
+    const INNER_SPACING = layout.dotSpacing; // gap between week dots, in dot units
+    const BLOCK_GAP_UNITS = Math.max(1.5, 1 + lifeGrouping.yearGap * 2); // gap between blocks
 
-    if (i < weeksLived) {
-      pastCircles.push(
-        <circle key={`past-${i}`} cx={cx} cy={cy} r={radius} fill={colors?.past || '#FFFFFF'} />
-      );
-    } else if (i === weeksLived) {
-      currentDotPosition = { cx, cy, radius };
-    } else {
-      futureCircles.push(
-        <circle key={`future-${i}`} cx={cx} cy={cy} r={radius} fill={colors?.future || '#333333'} />
-      );
+    // Solve dot size from total demand in dot-size units on each axis.
+    const wUnits = blockCols * BLOCK_COLS + INNER_SPACING * blockCols * (BLOCK_COLS - 1) + BLOCK_GAP_UNITS * (blockCols - 1);
+    const hUnits = blockRows * BLOCK_ROWS + INNER_SPACING * blockRows * (BLOCK_ROWS - 1) + BLOCK_GAP_UNITS * (blockRows - 1);
+    const dotSize = Math.max(2, Math.floor(Math.min(availableWidth / wUnits, gridAreaHeight / hUnits)));
+    const innerGap = Math.max(1, Math.floor(dotSize * INNER_SPACING));
+    const blockGap = Math.max(2, Math.floor(dotSize * BLOCK_GAP_UNITS));
+
+    const blockW = BLOCK_COLS * dotSize + (BLOCK_COLS - 1) * innerGap;
+    const blockH = BLOCK_ROWS * dotSize + (BLOCK_ROWS - 1) * innerGap;
+    gridWidth = blockCols * blockW + (blockCols - 1) * blockGap;
+    gridHeight = blockRows * blockH + (blockRows - 1) * blockGap;
+
+    startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
+    startY = Math.max(SAFE_AREA_TOP * 0.9, SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2);
+
+    for (let i = 0; i < TOTAL_DOTS; i++) {
+      const year = Math.floor(i / WEEKS_PER_YEAR);
+      const weekInYear = i % WEEKS_PER_YEAR;
+      const bRow = Math.floor(year / blockCols);
+      const bCol = year % blockCols;
+      const [iRow, iCol] = blockCells[weekInYear];
+      const cx = bCol * (blockW + blockGap) + iCol * (dotSize + innerGap) + dotSize / 2;
+      const cy = bRow * (blockH + blockGap) + iRow * (dotSize + innerGap) + dotSize / 2;
+      const radius = dotSize / 2;
+
+      if (i < weeksLived) {
+        pastDots.push(dotSvgElement({ keyId: `past-${i}`, cx, cy, radius, color: colors.past, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth }));
+      } else if (i === weeksLived) {
+        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth });
+      } else {
+        futureDots.push(dotSvgElement({ keyId: `future-${i}`, cx, cy, radius, color: colors.future, shape: dotStyle.shape, opacity: dotStyle.futureOpacity, ringWidth: dotStyle.ringWidth }));
+      }
+    }
+
+    // Decade labels: a small age number above each decade-boundary block.
+    if (lifeGrouping.decadeLabels) {
+      const labelFont = Math.max(8, Math.floor(dotSize * 1.3));
+      for (let year = 0; year < N; year += 10) {
+        const bRow = Math.floor(year / blockCols);
+        const bCol = year % blockCols;
+        decadeLabels.push(
+          <div
+            key={`decade-${year}`}
+            style={{
+              position: 'absolute',
+              left: `${startX + bCol * (blockW + blockGap)}px`,
+              top: `${Math.max(2, startY + bRow * (blockH + blockGap) - labelFont * 1.2)}px`,
+              fontSize: `${labelFont}px`,
+              fontFamily: typography?.fontFamily || 'monospace',
+              color: colors?.text || '#888888',
+              display: 'flex',
+            }}
+          >
+            {year}
+          </div>
+        );
+      }
+    }
+  } else {
+    // === Continuous aspect-fit grid (the classic single grid). ===
+    const outputRatio = availableWidth / gridAreaHeight;
+    const estimatedCols = Math.sqrt(TOTAL_DOTS * outputRatio);
+    const cols = Math.max(40, Math.floor(estimatedCols));
+    const rows = Math.ceil(TOTAL_DOTS / cols);
+
+    const dotSizeFromWidth = availableWidth / (cols + (cols - 1) * layout.dotSpacing);
+    const dotSizeFromHeight = gridAreaHeight / (rows + (rows - 1) * layout.dotSpacing);
+    const dotSize = Math.max(2, Math.floor(Math.min(dotSizeFromWidth, dotSizeFromHeight)));
+    const gap = Math.max(1, Math.floor(dotSize * layout.dotSpacing));
+
+    gridWidth = cols * dotSize + (cols - 1) * gap;
+    gridHeight = rows * dotSize + (rows - 1) * gap;
+
+    startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
+    startY = Math.max(SAFE_AREA_TOP * 0.9, SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2);
+
+    for (let i = 0; i < TOTAL_DOTS; i++) {
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const cx = col * (dotSize + gap) + dotSize / 2;
+      const cy = row * (dotSize + gap) + dotSize / 2;
+      const radius = dotSize / 2;
+
+      if (i < weeksLived) {
+        pastDots.push(dotSvgElement({ keyId: `past-${i}`, cx, cy, radius, color: colors.past, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth }));
+      } else if (i === weeksLived) {
+        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth });
+      } else {
+        futureDots.push(dotSvgElement({ keyId: `future-${i}`, cx, cy, radius, color: colors.future, shape: dotStyle.shape, opacity: dotStyle.futureOpacity, ringWidth: dotStyle.ringWidth }));
+      }
     }
   }
 
-  // Footer stats
-  const statsY = startY + gridHeight + height * 0.03;
-  const footerFontSize = width * typography.fontSize;
+  // Footer stats — pinned a fixed distance above the bottom margin (independent
+  // of the grid), so the text is always in the same place.
+  const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
 
   return (
     <div
       style={{
         width: '100%',
         height: '100%',
-        backgroundColor: colors?.background || '#1a1a1a',
+        ...buildBackgroundStyle(colors, background),
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -182,15 +283,13 @@ export default function LifeView({
           top: `${startY}px`,
         }}
       >
-        {pastCircles}
-        <circle
-          cx={currentDotPosition.cx}
-          cy={currentDotPosition.cy}
-          r={currentDotPosition.radius}
-          fill={colors?.current || '#FF6B35'}
-        />
-        {futureCircles}
+        {pastDots}
+        {currentDot}
+        {futureDots}
       </svg>
+
+      {/* Decade labels */}
+      {decadeLabels}
 
       {/* Stats Footer */}
       {typography.statsVisible && (
@@ -215,8 +314,8 @@ export default function LifeView({
       {/* Custom Text Elements */}
       {textElements.map((element) => {
         if (!element.visible || element.content == null) return null;
-        
-        const style: any = {
+
+        const style: Record<string, string> = {
           position: 'absolute',
           left: `${element.x}%`,
           top: `${element.y}%`,
@@ -225,7 +324,6 @@ export default function LifeView({
           color: element.color || colors?.text || '#888888',
         };
 
-        // Handle alignment for percentage-based positioning
         const align = element.align || 'left';
         if (align === 'center') {
           style.transform = 'translate(-50%, -50%)';
@@ -240,42 +338,6 @@ export default function LifeView({
             {String(element.content).trim()}
           </div>
         );
-      })}
-
-      {/* Plugin-added Elements */}
-      {pluginElements.map((element, index) => {
-        if (element.type === 'text' && element.content != null) {
-          const contentStr = String(element.content || '').trim();
-          
-          if (!contentStr) return null;
-
-          const style: any = {
-            position: 'absolute',
-            left: `${element.x}px`,
-            top: `${element.y}px`,
-            fontSize: `${element.fontSize || 16}px`,
-            color: element.color || colors?.text || '#888888',
-            fontFamily: element.fontFamily || typography?.fontFamily || 'monospace',
-          };
-
-          // Handle alignment
-          if (element.align === 'center') {
-            style.transform = 'translateX(-50%)';
-          } else if (element.align === 'right') {
-            style.transform = 'translateX(-100%)';
-          }
-
-          if (typeof element.maxWidth === 'number') {
-            style.maxWidth = `${element.maxWidth}px`;
-          }
-          
-          return (
-            <div key={`plugin-${index}`} style={style}>
-              {contentStr}
-            </div>
-          );
-        }
-        return null;
       })}
     </div>
   );
