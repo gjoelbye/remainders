@@ -45,8 +45,8 @@ const SKYLINE_LIGHT_COLOR = '#F4C77B';
  * 100% and the vertical-position slider treats BASE_GRID_OFFSET_Y as 0, so the
  * tuned default look reads as neutral while still being adjustable both ways.
  */
-export const BASE_GRID_SCALE = 1.12;
-export const BASE_GRID_OFFSET_Y = -0.025;
+export const BASE_GRID_SCALE = 1.2544;
+export const BASE_GRID_OFFSET_Y = 0.01;
 
 /**
  * Copenhagen skyline silhouette behind the clock, tinted with a theme color so
