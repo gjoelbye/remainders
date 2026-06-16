@@ -60,7 +60,7 @@ export const DEFAULT_CONFIG: LocalConfig = {
   skylineBaseline: 0.24,
   gridScale: 1.12,
   gridOffsetY: -0.025,
-  gridCols: 0,
+  gridCols: 8, // 8 columns × 11 rows, corners removed = 84 year-blocks
 };
 
 // --- small validation helpers ---
