@@ -53,6 +53,10 @@ export default function Home() {
   const [widgetSpace, setWidgetSpace] = useState(DEFAULT_CONFIG.widgetSpace);
   const [skyline, setSkyline] = useState(DEFAULT_CONFIG.skyline);
   const [skylineBaseline, setSkylineBaseline] = useState(DEFAULT_CONFIG.skylineBaseline);
+  const [gridScale, setGridScale] = useState(DEFAULT_CONFIG.gridScale);
+  const [gridOffsetY, setGridOffsetY] = useState(DEFAULT_CONFIG.gridOffsetY);
+  const [gridCols, setGridCols] = useState(DEFAULT_CONFIG.gridCols);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Fields with no UI control (kept at defaults, round-tripped)
   const [typography, setTypography] = useState(DEFAULT_CONFIG.typography);
@@ -93,6 +97,9 @@ export default function Home() {
     widgetSpace,
     skyline,
     skylineBaseline,
+    gridScale,
+    gridOffsetY,
+    gridCols,
     ...(backgroundImage ? { backgroundImage } : {}),
   });
 
@@ -119,6 +126,9 @@ export default function Home() {
     setWidgetSpace(cfg.widgetSpace);
     setSkyline(cfg.skyline);
     setSkylineBaseline(cfg.skylineBaseline);
+    setGridScale(cfg.gridScale);
+    setGridOffsetY(cfg.gridOffsetY);
+    setGridCols(cfg.gridCols);
     setBackgroundImage(cfg.backgroundImage);
   };
 
@@ -154,7 +164,7 @@ export default function Home() {
   }, [
     loaded, viewMode, birthDate, device, isMondayFirst, yearViewLayout, daysLayoutMode, timezone,
     colors, statsVisible, textElements, lifeExpectancyYears, dotStyle, background, lifeGrouping, daysMonthGrouping,
-    widgetSpace, skyline, skylineBaseline,
+    widgetSpace, skyline, skylineBaseline, gridScale, gridOffsetY, gridCols,
   ]);
 
   const handleThemeChange = (name: string) => {
@@ -377,21 +387,6 @@ export default function Home() {
               <input type="checkbox" checked={skyline} onChange={(e) => setSkyline(e.target.checked)} className="w-4 h-4" />
               <span className={lbl}>Copenhagen skyline</span>
             </label>
-
-            {skyline && (
-              <div className="space-y-2">
-                <label className={lbl}>Skyline position (align with clock)</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={Math.round(((0.36 - skylineBaseline) / 0.24) * 100)}
-                  onChange={(e) => setSkylineBaseline(0.36 - (parseInt(e.target.value) / 100) * 0.24)}
-                  className="w-full"
-                />
-              </div>
-            )}
           </div>
 
           {/* Device */}
@@ -509,6 +504,59 @@ export default function Home() {
           <div className={card}>
             <h2 className={sectionTitle}>Custom Text</h2>
             <TextElementsEditor textElements={textElements} onChange={setTextElements} />
+          </div>
+
+          {/* Advanced — fine-tune alignment to the lock screen */}
+          <div className={card}>
+            <button onClick={() => setShowAdvanced((v) => !v)} className="w-full flex items-center justify-between">
+              <h2 className={sectionTitle}>Advanced</h2>
+              <span className="text-neutral-500 text-lg leading-none">{showAdvanced ? '−' : '+'}</span>
+            </button>
+
+            {showAdvanced && (
+              <>
+                <p className="text-xs text-neutral-500">Nudge everything to line up with your clock and widgets.</p>
+
+                <div className="space-y-2">
+                  <label className={lbl}>Grid size: {Math.round(gridScale * 100)}%</label>
+                  <input type="range" min="0.6" max="1.6" step="0.02" value={gridScale} onChange={(e) => setGridScale(parseFloat(e.target.value))} className="w-full" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className={lbl}>Grid vertical position</label>
+                  <input type="range" min="-0.15" max="0.15" step="0.005" value={gridOffsetY} onChange={(e) => setGridOffsetY(parseFloat(e.target.value))} className="w-full" />
+                </div>
+
+                {viewMode === 'life' && lifeGrouping.enabled && (
+                  <div className="space-y-2">
+                    <label className={lbl}>Year-block columns: {gridCols === 0 ? 'Auto' : gridCols}</label>
+                    <input type="range" min="0" max="14" step="1" value={gridCols} onChange={(e) => setGridCols(parseInt(e.target.value))} className="w-full" />
+                  </div>
+                )}
+
+                {skyline && (
+                  <div className="space-y-2">
+                    <label className={lbl}>Skyline position (align with clock)</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={Math.round(((0.36 - skylineBaseline) / 0.24) * 100)}
+                      onChange={(e) => setSkylineBaseline(0.36 - (parseInt(e.target.value) / 100) * 0.24)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+
+                <button
+                  onClick={() => { setGridScale(1); setGridOffsetY(0); setGridCols(0); setSkylineBaseline(DEFAULT_CONFIG.skylineBaseline); }}
+                  className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 transition-colors text-xs uppercase tracking-widest"
+                >
+                  Reset nudges
+                </button>
+              </>
+            )}
           </div>
 
           {/* Config */}

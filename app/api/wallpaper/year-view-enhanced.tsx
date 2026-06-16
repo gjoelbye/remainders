@@ -51,6 +51,10 @@ interface YearViewProps {
   skyline?: boolean;
   /** Skyline ground-line position as a fraction of height */
   skylineBaseline?: number;
+  /** Advanced: multiply the fitted dot/grid size (1 = auto fit) */
+  gridScale?: number;
+  /** Advanced: nudge the grid vertically, as a fraction of height */
+  gridOffsetY?: number;
 }
 
 export default function YearView({
@@ -87,6 +91,8 @@ export default function YearView({
   widgetSpace = true,
   skyline = true,
   skylineBaseline = 0.24,
+  gridScale = 1,
+  gridOffsetY = 0,
 }: YearViewProps) {
   // Year Logic
   const date = currentDate;
@@ -161,14 +167,14 @@ export default function YearView({
     // Calculate dot size
     const maxDotSizeH = availableWidth / COLS_PER_ROW;
     const maxDotSizeV = gridAreaHeight / (ROWS + 1);
-    const dotSize = Math.min(maxDotSizeH, maxDotSizeV) * 0.7; // Smaller dots
+    const dotSize = Math.min(maxDotSizeH, maxDotSizeV) * 0.7 * gridScale; // Smaller dots
     const dotGap = dotSize * layout.dotSpacing * 0.5; // Tighter spacing
 
     const gridWidth = COLS_PER_ROW * (dotSize + dotGap) - dotGap;
     const gridHeight = ROWS * (dotSize + dotGap) - dotGap;
 
     const startX = paddingX + (availableWidth - gridWidth) / 2;
-    const startY = Math.max(SAFE_AREA_TOP * 0.9, SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2);
+    const startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
     // Footer pinned a fixed distance above the bottom margin.
     const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
 
@@ -336,7 +342,7 @@ export default function YearView({
   const maxMonthBlockHeight = gridAreaHeight / ROWS;
   const maxDotSizeV = maxMonthBlockHeight / 9; // Labels + 6 rows of dots + gaps
   
-  const dotSize = Math.min(maxDotSizeH, maxDotSizeV, cellWidth / 7, 20);
+  const dotSize = Math.min(maxDotSizeH, maxDotSizeV, cellWidth / 7, 20) * gridScale;
   const dotGap = dotSize * layout.dotSpacing;
   const monthLabelSize = dotSize * 1.6;
 
@@ -345,9 +351,7 @@ export default function YearView({
 
   const gridHeight = ROWS * monthBlockHeight + (ROWS - 1) * rowGap;
 
-  // Ensure content doesn't go too high
-  const calculatedStartY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2;
-  const startY = Math.max(SAFE_AREA_TOP * 0.9, calculatedStartY);
+  const startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
   // Footer pinned a fixed distance above the bottom margin.
   const statsY = height - SAFE_AREA_BOTTOM - footerFontSize;
 

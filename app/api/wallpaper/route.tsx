@@ -67,6 +67,8 @@ export async function GET(request: NextRequest) {
       widgetSpace: config.widgetSpace,
       skyline: config.skyline,
       skylineBaseline: config.skylineBaseline,
+      gridScale: config.gridScale,
+      gridOffsetY: config.gridOffsetY,
     };
 
     const view =
@@ -78,6 +80,7 @@ export async function GET(request: NextRequest) {
             background: config.background,
             lifeExpectancyYears: config.lifeExpectancyYears,
             lifeGrouping: config.lifeGrouping,
+            gridCols: config.gridCols,
           })
         : YearView({
             ...viewProps,

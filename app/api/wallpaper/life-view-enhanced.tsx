@@ -45,6 +45,12 @@ interface LifeViewProps {
   skyline?: boolean;
   /** Skyline ground-line position as a fraction of height */
   skylineBaseline?: number;
+  /** Advanced: multiply the fitted dot/grid size (1 = auto fit) */
+  gridScale?: number;
+  /** Advanced: nudge the grid vertically, as a fraction of height */
+  gridOffsetY?: number;
+  /** Advanced: force the number of year-block columns (0 = auto) */
+  gridCols?: number;
 }
 
 export default function LifeView({
@@ -79,6 +85,9 @@ export default function LifeView({
   widgetSpace = true,
   skyline = true,
   skylineBaseline = 0.24,
+  gridScale = 1,
+  gridOffsetY = 0,
+  gridCols = 0,
 }: LifeViewProps) {
   // Life Logic
   const LIFE_EXPECTANCY_YEARS = lifeExpectancyYears;
@@ -149,11 +158,36 @@ export default function LifeView({
     }
 
     // Outer block grid: pick block-columns so the overall grid matches the
-    // canvas aspect (corrected for the block's own ~8:7 aspect).
+    // canvas aspect (corrected for the block's own ~8:7 aspect), unless the
+    // user pins a column count via Advanced settings.
     const availAR = availableWidth / gridAreaHeight;
     const rawCols = Math.sqrt(availAR * N * (BLOCK_ROWS / BLOCK_COLS));
-    const blockCols = Math.max(1, Math.min(N, Math.round(rawCols)));
+    const autoCols = Math.max(1, Math.min(N, Math.round(rawCols)));
+    const blockCols = gridCols > 0 ? Math.max(1, Math.min(N, gridCols)) : autoCols;
     const blockRows = Math.ceil(N / blockCols);
+
+    // Corner-clipped outer grid: leave the 4 grid corners empty (symmetric) by
+    // pushing the spare cells into the ends of the top & bottom rows. With 84
+    // years in 8 columns this gives 8×11 minus the 4 corners = 84 blocks.
+    const spare = blockCols * blockRows - N;
+    const topCut = Math.ceil(spare / 2);
+    const botCut = spare - topCut;
+    const yearCells: Array<[number, number]> = [];
+    for (let r = 0; r < blockRows; r++) {
+      let skipL = 0;
+      let skipR = 0;
+      if (blockRows === 1) {
+        skipL = Math.ceil(spare / 2);
+        skipR = spare - skipL;
+      } else if (r === 0) {
+        skipL = Math.ceil(topCut / 2);
+        skipR = topCut - skipL;
+      } else if (r === blockRows - 1) {
+        skipL = Math.ceil(botCut / 2);
+        skipR = botCut - skipL;
+      }
+      for (let c = skipL; c < blockCols - skipR; c++) yearCells.push([r, c]);
+    }
 
     const INNER_SPACING = layout.dotSpacing; // gap between week dots, in dot units
     const BLOCK_GAP_UNITS = Math.max(1.5, 1 + lifeGrouping.yearGap * 2); // gap between blocks
@@ -161,7 +195,7 @@ export default function LifeView({
     // Solve dot size from total demand in dot-size units on each axis.
     const wUnits = blockCols * BLOCK_COLS + INNER_SPACING * blockCols * (BLOCK_COLS - 1) + BLOCK_GAP_UNITS * (blockCols - 1);
     const hUnits = blockRows * BLOCK_ROWS + INNER_SPACING * blockRows * (BLOCK_ROWS - 1) + BLOCK_GAP_UNITS * (blockRows - 1);
-    const dotSize = Math.max(2, Math.floor(Math.min(availableWidth / wUnits, gridAreaHeight / hUnits)));
+    const dotSize = Math.max(2, Math.floor(Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * gridScale));
     const innerGap = Math.max(1, Math.floor(dotSize * INNER_SPACING));
     const blockGap = Math.max(2, Math.floor(dotSize * BLOCK_GAP_UNITS));
 
@@ -171,13 +205,12 @@ export default function LifeView({
     gridHeight = blockRows * blockH + (blockRows - 1) * blockGap;
 
     startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
-    startY = Math.max(SAFE_AREA_TOP * 0.9, SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2);
+    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
 
     for (let i = 0; i < TOTAL_DOTS; i++) {
       const year = Math.floor(i / WEEKS_PER_YEAR);
       const weekInYear = i % WEEKS_PER_YEAR;
-      const bRow = Math.floor(year / blockCols);
-      const bCol = year % blockCols;
+      const [bRow, bCol] = yearCells[year];
       const [iRow, iCol] = blockCells[weekInYear];
       const cx = bCol * (blockW + blockGap) + iCol * (dotSize + innerGap) + dotSize / 2;
       const cy = bRow * (blockH + blockGap) + iRow * (dotSize + innerGap) + dotSize / 2;
@@ -196,8 +229,7 @@ export default function LifeView({
     if (lifeGrouping.decadeLabels) {
       const labelFont = Math.max(8, Math.floor(dotSize * 1.3));
       for (let year = 0; year < N; year += 10) {
-        const bRow = Math.floor(year / blockCols);
-        const bCol = year % blockCols;
+        const [bRow, bCol] = yearCells[year];
         decadeLabels.push(
           <div
             key={`decade-${year}`}
@@ -225,14 +257,14 @@ export default function LifeView({
 
     const dotSizeFromWidth = availableWidth / (cols + (cols - 1) * layout.dotSpacing);
     const dotSizeFromHeight = gridAreaHeight / (rows + (rows - 1) * layout.dotSpacing);
-    const dotSize = Math.max(2, Math.floor(Math.min(dotSizeFromWidth, dotSizeFromHeight)));
+    const dotSize = Math.max(2, Math.floor(Math.min(dotSizeFromWidth, dotSizeFromHeight) * gridScale));
     const gap = Math.max(1, Math.floor(dotSize * layout.dotSpacing));
 
     gridWidth = cols * dotSize + (cols - 1) * gap;
     gridHeight = rows * dotSize + (rows - 1) * gap;
 
     startX = Math.max(SAFE_WIDTH_PADDING, (width - gridWidth) / 2);
-    startY = Math.max(SAFE_AREA_TOP * 0.9, SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2);
+    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * gridOffsetY;
 
     for (let i = 0; i < TOTAL_DOTS; i++) {
       const row = Math.floor(i / cols);

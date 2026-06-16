@@ -58,6 +58,9 @@ export const DEFAULT_CONFIG: LocalConfig = {
   widgetSpace: true,
   skyline: true,
   skylineBaseline: 0.24,
+  gridScale: 1,
+  gridOffsetY: 0,
+  gridCols: 0,
 };
 
 // --- small validation helpers ---
@@ -208,6 +211,9 @@ export function sanitizeConfig(input: unknown): LocalConfig {
     widgetSpace: bool(c.widgetSpace, D.widgetSpace),
     skyline: bool(c.skyline, D.skyline),
     skylineBaseline: num(c.skylineBaseline, D.skylineBaseline, 0.1, 0.4),
+    gridScale: num(c.gridScale, D.gridScale, 0.5, 1.8),
+    gridOffsetY: num(c.gridOffsetY, D.gridOffsetY, -0.25, 0.25),
+    gridCols: Math.round(num(c.gridCols, D.gridCols, 0, 16)),
   };
 
   if (bgImage) {

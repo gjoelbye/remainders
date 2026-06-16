@@ -209,4 +209,15 @@ export interface LocalConfig {
    * height (smaller = higher on screen). Tunes alignment with the iOS clock.
    */
   skylineBaseline: number;
+
+  // --- Advanced layout nudges (for aligning to the lock screen) ---
+
+  /** Multiply the auto-fitted dot/grid size (1 = fit, >1 = larger). */
+  gridScale: number;
+
+  /** Nudge the whole grid vertically, as a fraction of screen height. */
+  gridOffsetY: number;
+
+  /** Force the number of Life year-block columns (0 = auto). */
+  gridCols: number;
 }
