@@ -11,7 +11,7 @@
 
 import type { ReactElement } from 'react';
 import type { BackgroundStyle, DotShape } from './types';
-import { COPENHAGEN_SKYLINE } from './copenhagen-skyline';
+import { COPENHAGEN_SKYLINE, FLAG_RED, FLAG_WHITE } from './copenhagen-skyline';
 
 /** Default per-dot ring stroke width if not provided. */
 const DEFAULT_RING_WIDTH = 2;
@@ -86,6 +86,9 @@ export function skylineElement(opts: {
       <path d={COPENHAGEN_SKYLINE.path} fill={color} fillRule="evenodd" fillOpacity={opacity} />
       {/* Lit windows painted on top of the silhouette, exactly over the holes. */}
       {lights && <path d={COPENHAGEN_SKYLINE.windowsPath} fill={SKYLINE_LIGHT_COLOR} fillRule="evenodd" />}
+      {/* Danish flag: real red + white, never theme-tinted, on top of everything. */}
+      <path d={COPENHAGEN_SKYLINE.flagRedPath} fill={FLAG_RED} fillRule="evenodd" fillOpacity={opacity} />
+      <path d={COPENHAGEN_SKYLINE.flagCrossPath} fill={FLAG_WHITE} fillRule="evenodd" fillOpacity={opacity} />
     </svg>
   );
 }
