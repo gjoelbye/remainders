@@ -43,6 +43,8 @@ interface LifeViewProps {
   widgetSpace?: boolean;
   /** Render the Copenhagen skyline silhouette behind the clock */
   skyline?: boolean;
+  /** Skyline ground-line position as a fraction of height */
+  skylineBaseline?: number;
 }
 
 export default function LifeView({
@@ -76,6 +78,7 @@ export default function LifeView({
   lifeGrouping = { enabled: false, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
   widgetSpace = true,
   skyline = true,
+  skylineBaseline = 0.24,
 }: LifeViewProps) {
   // Life Logic
   const LIFE_EXPECTANCY_YEARS = lifeExpectancyYears;
@@ -281,7 +284,7 @@ export default function LifeView({
         />
       )}
       {/* Copenhagen skyline behind the clock */}
-      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: SAFE_WIDTH_PADDING })}
+      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: SAFE_WIDTH_PADDING, baseline: skylineBaseline })}
       {/* Main Grid SVG */}
       <svg
         width={gridWidth}

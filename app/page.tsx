@@ -52,6 +52,7 @@ export default function Home() {
   const [daysMonthGrouping, setDaysMonthGrouping] = useState(DEFAULT_CONFIG.daysMonthGrouping);
   const [widgetSpace, setWidgetSpace] = useState(DEFAULT_CONFIG.widgetSpace);
   const [skyline, setSkyline] = useState(DEFAULT_CONFIG.skyline);
+  const [skylineBaseline, setSkylineBaseline] = useState(DEFAULT_CONFIG.skylineBaseline);
 
   // Fields with no UI control (kept at defaults, round-tripped)
   const [typography, setTypography] = useState(DEFAULT_CONFIG.typography);
@@ -91,6 +92,7 @@ export default function Home() {
     daysMonthGrouping,
     widgetSpace,
     skyline,
+    skylineBaseline,
     ...(backgroundImage ? { backgroundImage } : {}),
   });
 
@@ -116,6 +118,7 @@ export default function Home() {
     setDaysMonthGrouping(cfg.daysMonthGrouping);
     setWidgetSpace(cfg.widgetSpace);
     setSkyline(cfg.skyline);
+    setSkylineBaseline(cfg.skylineBaseline);
     setBackgroundImage(cfg.backgroundImage);
   };
 
@@ -151,7 +154,7 @@ export default function Home() {
   }, [
     loaded, viewMode, birthDate, device, isMondayFirst, yearViewLayout, daysLayoutMode, timezone,
     colors, statsVisible, textElements, lifeExpectancyYears, dotStyle, background, lifeGrouping, daysMonthGrouping,
-    widgetSpace, skyline,
+    widgetSpace, skyline, skylineBaseline,
   ]);
 
   const handleThemeChange = (name: string) => {
@@ -374,6 +377,21 @@ export default function Home() {
               <input type="checkbox" checked={skyline} onChange={(e) => setSkyline(e.target.checked)} className="w-4 h-4" />
               <span className={lbl}>Copenhagen skyline</span>
             </label>
+
+            {skyline && (
+              <div className="space-y-2">
+                <label className={lbl}>Skyline position (align with clock)</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={Math.round(((0.36 - skylineBaseline) / 0.24) * 100)}
+                  onChange={(e) => setSkylineBaseline(0.36 - (parseInt(e.target.value) / 100) * 0.24)}
+                  className="w-full"
+                />
+              </div>
+            )}
           </div>
 
           {/* Device */}

@@ -49,6 +49,8 @@ interface YearViewProps {
   widgetSpace?: boolean;
   /** Render the Copenhagen skyline silhouette behind the clock */
   skyline?: boolean;
+  /** Skyline ground-line position as a fraction of height */
+  skylineBaseline?: number;
 }
 
 export default function YearView({
@@ -84,6 +86,7 @@ export default function YearView({
   daysMonthGrouping = false,
   widgetSpace = true,
   skyline = true,
+  skylineBaseline = 0.24,
 }: YearViewProps) {
   // Year Logic
   const date = currentDate;
@@ -241,7 +244,7 @@ export default function YearView({
           />
         )}
         {/* Copenhagen skyline behind the clock */}
-        {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX })}
+        {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX, baseline: skylineBaseline })}
         <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%' }}>
           {allDots}
         </div>
@@ -488,7 +491,7 @@ export default function YearView({
         />
       )}
       {/* Copenhagen skyline behind the clock */}
-      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX })}
+      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX, baseline: skylineBaseline })}
       <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%' }}>
         {monthCells}
       </div>

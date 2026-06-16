@@ -57,6 +57,7 @@ export const DEFAULT_CONFIG: LocalConfig = {
   daysMonthGrouping: false,
   widgetSpace: true,
   skyline: true,
+  skylineBaseline: 0.24,
 };
 
 // --- small validation helpers ---
@@ -206,6 +207,7 @@ export function sanitizeConfig(input: unknown): LocalConfig {
     daysMonthGrouping: bool(c.daysMonthGrouping, D.daysMonthGrouping),
     widgetSpace: bool(c.widgetSpace, D.widgetSpace),
     skyline: bool(c.skyline, D.skyline),
+    skylineBaseline: num(c.skylineBaseline, D.skylineBaseline, 0.1, 0.4),
   };
 
   if (bgImage) {

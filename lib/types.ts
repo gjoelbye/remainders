@@ -203,4 +203,10 @@ export interface LocalConfig {
 
   /** Render the Copenhagen skyline silhouette behind the clock */
   skyline: boolean;
+
+  /**
+   * Vertical position of the skyline's ground line, as a fraction of screen
+   * height (smaller = higher on screen). Tunes alignment with the iOS clock.
+   */
+  skylineBaseline: number;
 }

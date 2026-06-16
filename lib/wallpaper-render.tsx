@@ -34,8 +34,6 @@ export const WIDGET_SAFE_TOP_RATIO = 0.4;
  * centered around 0.23–0.30h) so the time reads in front of the city, while
  * staying above the dot grid and the below-clock widget row.
  */
-const SKYLINE_BASELINE = 0.29;
-
 /** Fraction of the silhouette's solid base (ground) trimmed off the bottom. */
 const SKYLINE_BASE_CROP = 0.1;
 
@@ -44,8 +42,9 @@ const SKYLINE_BASE_CROP = 0.1;
  * it matches every palette. Inset by `sidePadding` so it shares the grid's even
  * left/right margins, and the heavy solid base is trimmed by shrinking the
  * viewBox (the outer SVG viewport clips whatever falls below the cut line).
- * Returns an absolutely positioned inline SVG (Satori renders <path> like the
- * dot shapes).
+ * `baseline` sets the ground line as a fraction of height (lower = higher up),
+ * so it can be aligned with the iOS clock. Returns an absolutely positioned
+ * inline SVG (Satori renders <path> like the dot shapes).
  */
 export function skylineElement(opts: {
   width: number;
@@ -53,14 +52,16 @@ export function skylineElement(opts: {
   color: string;
   /** px inset on each side, matching the dot grid's side margins */
   sidePadding: number;
+  /** ground-line position as a fraction of height (smaller = higher) */
+  baseline: number;
   opacity?: number;
 }): ReactElement {
-  const { width, height, color, sidePadding, opacity = 1 } = opts;
+  const { width, height, color, sidePadding, baseline, opacity = 1 } = opts;
   const visibleH = COPENHAGEN_SKYLINE.height * (1 - SKYLINE_BASE_CROP);
   const aspect = COPENHAGEN_SKYLINE.width / visibleH;
   const w = width - sidePadding * 2;
   const h = w / aspect;
-  const top = height * SKYLINE_BASELINE - h;
+  const top = height * baseline - h;
   return (
     <svg
       key="skyline"
