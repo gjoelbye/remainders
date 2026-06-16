@@ -23,7 +23,7 @@ import { DOT_SHAPES } from './types';
  * that the old Firestore wallpaper route did inline.
  */
 export const DEFAULT_CONFIG: LocalConfig = {
-  birthDate: '',
+  birthDate: '2000-04-22',
   viewMode: 'life',
   device: { brand: 'Apple', modelName: 'iPhone 14 Pro', width: 1179, height: 2556 },
   colors: {
@@ -53,13 +53,13 @@ export const DEFAULT_CONFIG: LocalConfig = {
   lifeExpectancyYears: 84,
   dotStyle: { shape: 'ring', futureOpacity: 1, ringWidth: 1.5 },
   background: { mode: 'solid', from: '#2E3440', to: '#2E3440', angle: 180 },
-  lifeGrouping: { enabled: true, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
+  lifeGrouping: { enabled: true, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: true },
   daysMonthGrouping: false,
   widgetSpace: true,
   skyline: true,
   skylineBaseline: 0.24,
-  gridScale: 1,
-  gridOffsetY: 0,
+  gridScale: 1.12,
+  gridOffsetY: -0.025,
   gridCols: 0,
 };
 
