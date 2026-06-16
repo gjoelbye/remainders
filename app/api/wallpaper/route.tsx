@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
       textElements: config.textElements,
       currentDate,
       backgroundImage: backgroundImageProp,
+      widgetSpace: config.widgetSpace,
+      skyline: config.skyline,
     };
 
     const view =

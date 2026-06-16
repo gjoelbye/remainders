@@ -50,6 +50,8 @@ export default function Home() {
   const [background, setBackground] = useState(DEFAULT_CONFIG.background);
   const [lifeGrouping, setLifeGrouping] = useState(DEFAULT_CONFIG.lifeGrouping);
   const [daysMonthGrouping, setDaysMonthGrouping] = useState(DEFAULT_CONFIG.daysMonthGrouping);
+  const [widgetSpace, setWidgetSpace] = useState(DEFAULT_CONFIG.widgetSpace);
+  const [skyline, setSkyline] = useState(DEFAULT_CONFIG.skyline);
 
   // Fields with no UI control (kept at defaults, round-tripped)
   const [typography, setTypography] = useState(DEFAULT_CONFIG.typography);
@@ -61,6 +63,10 @@ export default function Home() {
   const [saveMessage, setSaveMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [wallpaperUrl, setWallpaperUrl] = useState('');
+  // Per-load token appended to the *preview* image only (never the copyable URL)
+  // so the editor preview always reflects the latest render instead of a cached
+  // image at an unchanged URL.
+  const [previewNonce] = useState(() => Date.now().toString(36));
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -83,6 +89,8 @@ export default function Home() {
     background,
     lifeGrouping,
     daysMonthGrouping,
+    widgetSpace,
+    skyline,
     ...(backgroundImage ? { backgroundImage } : {}),
   });
 
@@ -106,6 +114,8 @@ export default function Home() {
     setBackground(cfg.background);
     setLifeGrouping(cfg.lifeGrouping);
     setDaysMonthGrouping(cfg.daysMonthGrouping);
+    setWidgetSpace(cfg.widgetSpace);
+    setSkyline(cfg.skyline);
     setBackgroundImage(cfg.backgroundImage);
   };
 
@@ -141,6 +151,7 @@ export default function Home() {
   }, [
     loaded, viewMode, birthDate, device, isMondayFirst, yearViewLayout, daysLayoutMode, timezone,
     colors, statsVisible, textElements, lifeExpectancyYears, dotStyle, background, lifeGrouping, daysMonthGrouping,
+    widgetSpace, skyline,
   ]);
 
   const handleThemeChange = (name: string) => {
@@ -215,6 +226,8 @@ export default function Home() {
   // Preview sized to device aspect ratio
   const previewH = 460;
   const previewW = Math.round(previewH * (device.width / device.height));
+  // Cache-busted preview src (the copyable wallpaperUrl stays clean).
+  const previewSrc = wallpaperUrl ? `${wallpaperUrl}&_p=${previewNonce}` : '';
 
   const card = 'p-5 bg-neutral-900 border border-neutral-800 rounded-lg space-y-4';
   const sectionTitle = 'text-xs uppercase tracking-widest text-neutral-400';
@@ -238,11 +251,11 @@ export default function Home() {
                 className="relative bg-black rounded overflow-hidden border border-neutral-800"
                 style={{ width: `${previewW}px`, height: `${previewH}px` }}
               >
-                {loaded && isConfigComplete && wallpaperUrl ? (
+                {loaded && isConfigComplete && previewSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    key={wallpaperUrl}
-                    src={wallpaperUrl}
+                    key={previewSrc}
+                    src={previewSrc}
                     alt="Wallpaper preview"
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
@@ -350,6 +363,16 @@ export default function Home() {
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={statsVisible} onChange={(e) => setStatsVisible(e.target.checked)} className="w-4 h-4" />
               <span className={lbl}>Show stats footer</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={widgetSpace} onChange={(e) => setWidgetSpace(e.target.checked)} className="w-4 h-4" />
+              <span className={lbl}>Room for widgets</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={skyline} onChange={(e) => setSkyline(e.target.checked)} className="w-4 h-4" />
+              <span className={lbl}>Copenhagen skyline</span>
             </label>
           </div>
 

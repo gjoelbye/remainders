@@ -7,7 +7,7 @@
  */
 
 import { TextElement, DotShape, BackgroundStyle, LifeGrouping } from '@/lib/types';
-import { buildBackgroundStyle, dotSvgElement } from '@/lib/wallpaper-render';
+import { buildBackgroundStyle, dotSvgElement, computeSafeAreaTop, skylineElement } from '@/lib/wallpaper-render';
 
 interface LifeViewProps {
   width: number;
@@ -39,6 +39,10 @@ interface LifeViewProps {
   background?: BackgroundStyle;
   lifeExpectancyYears?: number;
   lifeGrouping?: LifeGrouping;
+  /** Reserve the top of the screen for the iOS clock + a widget row */
+  widgetSpace?: boolean;
+  /** Render the Copenhagen skyline silhouette behind the clock */
+  skyline?: boolean;
 }
 
 export default function LifeView({
@@ -70,6 +74,8 @@ export default function LifeView({
   background,
   lifeExpectancyYears = 84, // default life expectancy
   lifeGrouping = { enabled: false, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
+  widgetSpace = true,
+  skyline = true,
 }: LifeViewProps) {
   // Life Logic
   const LIFE_EXPECTANCY_YEARS = lifeExpectancyYears;
@@ -86,9 +92,7 @@ export default function LifeView({
   // Layout Calculations with Aspect Ratio Support
   const aspectRatio = height / width;
 
-  const SAFE_AREA_TOP = aspectRatio > 2.0
-    ? height * Math.max(layout.topPadding, 0.28)
-    : height * layout.topPadding;
+  const SAFE_AREA_TOP = computeSafeAreaTop(height, aspectRatio, layout.topPadding, widgetSpace);
   const SAFE_AREA_BOTTOM = height * layout.bottomPadding;
 
   const adjustedSidePadding = aspectRatio > 2.1
@@ -276,6 +280,8 @@ export default function LifeView({
           }}
         />
       )}
+      {/* Copenhagen skyline behind the clock */}
+      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: SAFE_WIDTH_PADDING })}
       {/* Main Grid SVG */}
       <svg
         width={gridWidth}

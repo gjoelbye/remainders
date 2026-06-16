@@ -11,9 +11,85 @@
 
 import type { ReactElement } from 'react';
 import type { BackgroundStyle, DotShape } from './types';
+import { COPENHAGEN_SKYLINE } from './copenhagen-skyline';
 
 /** Default per-dot ring stroke width if not provided. */
 const DEFAULT_RING_WIDTH = 2;
+
+/**
+ * Fraction of the screen height reserved at the top for iOS lock-screen
+ * "furniture" when `widgetSpace` is on, so the dot grid sits below it.
+ *
+ * Reference (iPhone 14 Pro, 393×852 pt logical): the clock artboard is ≈210×130
+ * pt centered around y≈195 pt, and a lock-screen widget row (≈160×60 pt) sits
+ * just below it, ending near y≈330 pt → ≈0.39 of the height. We round up to
+ * 0.40 so a full row of widgets fits with a little breathing room and never
+ * overlaps a dot.
+ */
+export const WIDGET_SAFE_TOP_RATIO = 0.4;
+
+/**
+ * Vertical position of the skyline's ground line, as a fraction of screen
+ * height. ~0.29 sits the silhouette directly behind the iOS clock (which is
+ * centered around 0.23–0.30h) so the time reads in front of the city, while
+ * staying above the dot grid and the below-clock widget row.
+ */
+const SKYLINE_BASELINE = 0.29;
+
+/** Fraction of the silhouette's solid base (ground) trimmed off the bottom. */
+const SKYLINE_BASE_CROP = 0.1;
+
+/**
+ * Copenhagen skyline silhouette behind the clock, tinted with a theme color so
+ * it matches every palette. Inset by `sidePadding` so it shares the grid's even
+ * left/right margins, and the heavy solid base is trimmed by shrinking the
+ * viewBox (the outer SVG viewport clips whatever falls below the cut line).
+ * Returns an absolutely positioned inline SVG (Satori renders <path> like the
+ * dot shapes).
+ */
+export function skylineElement(opts: {
+  width: number;
+  height: number;
+  color: string;
+  /** px inset on each side, matching the dot grid's side margins */
+  sidePadding: number;
+  opacity?: number;
+}): ReactElement {
+  const { width, height, color, sidePadding, opacity = 1 } = opts;
+  const visibleH = COPENHAGEN_SKYLINE.height * (1 - SKYLINE_BASE_CROP);
+  const aspect = COPENHAGEN_SKYLINE.width / visibleH;
+  const w = width - sidePadding * 2;
+  const h = w / aspect;
+  const top = height * SKYLINE_BASELINE - h;
+  return (
+    <svg
+      key="skyline"
+      width={w}
+      height={h}
+      viewBox={`0 0 ${COPENHAGEN_SKYLINE.width} ${visibleH}`}
+      style={{ position: 'absolute', left: `${sidePadding}px`, top: `${top}px`, overflow: 'hidden' }}
+    >
+      <path d={COPENHAGEN_SKYLINE.path} fill={color} fillRule="evenodd" fillOpacity={opacity} />
+    </svg>
+  );
+}
+
+/**
+ * Top safe-area in px for the dot grid. Tall (notch / Dynamic Island) phones
+ * need a deeper reserve for the clock even without widgets; turning on
+ * `widgetSpace` deepens it further to clear a widget row (see ratio above).
+ * Both renderers call this so the two views stay perfectly in sync.
+ */
+export function computeSafeAreaTop(
+  height: number,
+  aspectRatio: number,
+  topPadding: number,
+  widgetSpace: boolean
+): number {
+  const base = aspectRatio > 2.0 ? Math.max(topPadding, 0.28) : topPadding;
+  const ratio = widgetSpace ? Math.max(base, WIDGET_SAFE_TOP_RATIO) : base;
+  return height * ratio;
+}
 
 /**
  * Root-element background style. Returns a solid color or a CSS gradient

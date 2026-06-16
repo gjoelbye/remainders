@@ -6,7 +6,7 @@
  */
 
 import { TextElement, DotShape, BackgroundStyle } from '@/lib/types';
-import { buildBackgroundStyle, dotDivStyle } from '@/lib/wallpaper-render';
+import { buildBackgroundStyle, dotDivStyle, computeSafeAreaTop, skylineElement } from '@/lib/wallpaper-render';
 import {
   calculateDaysLeftInYear,
   getCurrentDayOfYear,
@@ -45,6 +45,10 @@ interface YearViewProps {
   dotStyle?: { shape: DotShape; futureOpacity: number; ringWidth: number };
   background?: BackgroundStyle;
   daysMonthGrouping?: boolean;
+  /** Reserve the top of the screen for the iOS clock + a widget row */
+  widgetSpace?: boolean;
+  /** Render the Copenhagen skyline silhouette behind the clock */
+  skyline?: boolean;
 }
 
 export default function YearView({
@@ -78,6 +82,8 @@ export default function YearView({
   dotStyle = { shape: 'circle', futureOpacity: 1, ringWidth: 2 },
   background,
   daysMonthGrouping = false,
+  widgetSpace = true,
+  skyline = true,
 }: YearViewProps) {
   // Year Logic
   const date = currentDate;
@@ -93,9 +99,7 @@ export default function YearView({
   if (yearViewLayout === 'days') {
     const aspectRatio = height / width;
     
-    const SAFE_AREA_TOP = aspectRatio > 2.0 
-      ? height * Math.max(layout.topPadding, 0.28) 
-      : height * layout.topPadding;
+    const SAFE_AREA_TOP = computeSafeAreaTop(height, aspectRatio, layout.topPadding, widgetSpace);
     const SAFE_AREA_BOTTOM = height * layout.bottomPadding;
     const SAFE_HEIGHT = height - SAFE_AREA_TOP - SAFE_AREA_BOTTOM;
     
@@ -236,6 +240,8 @@ export default function YearView({
             }}
           />
         )}
+        {/* Copenhagen skyline behind the clock */}
+        {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX })}
         <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%' }}>
           {allDots}
         </div>
@@ -302,9 +308,7 @@ export default function YearView({
   const aspectRatio = height / width;
   
   // Adapt safe zones based on aspect ratio
-  const SAFE_AREA_TOP = aspectRatio > 2.0 
-    ? height * Math.max(layout.topPadding, 0.28) 
-    : height * layout.topPadding;
+  const SAFE_AREA_TOP = computeSafeAreaTop(height, aspectRatio, layout.topPadding, widgetSpace);
   const SAFE_AREA_BOTTOM = height * layout.bottomPadding;
   const SAFE_HEIGHT = height - SAFE_AREA_TOP - SAFE_AREA_BOTTOM;
 
@@ -483,6 +487,8 @@ export default function YearView({
           }}
         />
       )}
+      {/* Copenhagen skyline behind the clock */}
+      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: paddingX })}
       <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%' }}>
         {monthCells}
       </div>

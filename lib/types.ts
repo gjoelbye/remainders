@@ -194,4 +194,13 @@ export interface LocalConfig {
 
   /** Year "days" layout: separate dots into month blocks */
   daysMonthGrouping: boolean;
+
+  /**
+   * Reserve the top of the screen for the iOS lock-screen clock + a widget row,
+   * pushing the dot grid into the lower area so widgets never cover any dots.
+   */
+  widgetSpace: boolean;
+
+  /** Render the Copenhagen skyline silhouette behind the clock */
+  skyline: boolean;
 }

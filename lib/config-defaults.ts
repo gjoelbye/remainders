@@ -55,6 +55,8 @@ export const DEFAULT_CONFIG: LocalConfig = {
   background: { mode: 'solid', from: '#2E3440', to: '#2E3440', angle: 180 },
   lifeGrouping: { enabled: true, blockShape: 'square', yearGap: 0.5, decadeGap: 1.5, decadeLabels: false },
   daysMonthGrouping: false,
+  widgetSpace: true,
+  skyline: true,
 };
 
 // --- small validation helpers ---
@@ -202,6 +204,8 @@ export function sanitizeConfig(input: unknown): LocalConfig {
     background: sanitizeBackground(c.background),
     lifeGrouping: sanitizeLifeGrouping(c.lifeGrouping),
     daysMonthGrouping: bool(c.daysMonthGrouping, D.daysMonthGrouping),
+    widgetSpace: bool(c.widgetSpace, D.widgetSpace),
+    skyline: bool(c.skyline, D.skyline),
   };
 
   if (bgImage) {
