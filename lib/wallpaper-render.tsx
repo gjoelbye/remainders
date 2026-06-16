@@ -86,9 +86,11 @@ export function skylineElement(opts: {
       <path d={COPENHAGEN_SKYLINE.path} fill={color} fillRule="evenodd" fillOpacity={opacity} />
       {/* Lit windows painted on top of the silhouette, exactly over the holes. */}
       {lights && <path d={COPENHAGEN_SKYLINE.windowsPath} fill={SKYLINE_LIGHT_COLOR} fillRule="evenodd" />}
-      {/* Danish flag: real red + white, never theme-tinted, on top of everything. */}
+      {/* Danish flag: real red + white, never theme-tinted, on top of everything.
+          White backing first, then the red field on top — the cross shows
+          through with a single, naturally-connected red/white edge. */}
+      <path d={COPENHAGEN_SKYLINE.flagWhitePath} fill={FLAG_WHITE} fillRule="evenodd" fillOpacity={opacity} />
       <path d={COPENHAGEN_SKYLINE.flagRedPath} fill={FLAG_RED} fillRule="evenodd" fillOpacity={opacity} />
-      <path d={COPENHAGEN_SKYLINE.flagCrossPath} fill={FLAG_WHITE} fillRule="evenodd" fillOpacity={opacity} />
     </svg>
   );
 }

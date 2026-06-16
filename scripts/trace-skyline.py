@@ -57,14 +57,19 @@ def main():
     white = (R > 175) & (G > 175) & (B > 175)
     red = (R >= 120) & (R - G > 55) & (R - B > 40) & (G < 150)
 
-    # --- flag region: closing of red bridges the white cross ---
-    # The red field is the SOLID flag region (filled under the cross too); the
-    # white cross is painted on top. Drawing them as two complementary regions
-    # leaves a dark seam where their independently-fit boundaries disagree, so
-    # we keep red solid beneath the white — any edge mismatch then shows red.
+    # --- flag: one shared boundary (the red field outline) ---
+    # Tracing red and white as two separate regions gives the cross its own
+    # boundary that doesn't follow the red, so it looks disconnected. Instead we
+    # lay the whole flag down as a solid WHITE backing (closing of red bridges
+    # the cross), then paint the precisely-traced red field on top. The only
+    # red/white edge is then the single red outline (a clean potrace spline);
+    # white shows through exactly in the cross. Dilate red by 1px so it meets
+    # the white at the true colour edge rather than the eroded threshold.
     flag_region = close((red * 255).astype(np.uint8), 13)
-    flag_red = flag_region & ~black           # solid flag (minus the pole)
-    flag_cross = flag_region & white          # white cross, drawn over the red
+    flag_white = flag_region & ~black                              # solid backing
+    red_dil = np.array(Image.fromarray((red * 255).astype(np.uint8))
+                       .filter(ImageFilter.MaxFilter(3))) > 127
+    flag_red = red_dil & ~black                                     # red field on top
 
     # --- windows: enclosed white inside the black buildings (flood fill sky) ---
     from collections import deque
@@ -98,7 +103,7 @@ def main():
     SX0, SX1 = cx.min(), cx.max()
     SY0, SBASE = cy.min(), ground_top
     print(f"src {w}x{h}  content x=[{SX0},{SX1}] y=[{SY0},{SBASE}]  ground band h={h-ground_top}")
-    print(f"flag: red_field={int(flag_red.sum())} cross={int(flag_cross.sum())} windows={int(windows.sum())}")
+    print(f"flag: red_field={int(flag_red.sum())} white_backing={int(flag_white.sum())} windows={int(windows.sum())}")
 
     # potrace transform (raw -> image px): (0.1x, H - 0.1y); then affine to viewBox.
     sx = (DST_X1 - DST_X0) / (SX1 - SX0)
@@ -150,18 +155,18 @@ def main():
 
     sil_path = build(black, 2)
     win_path = build(windows, 1)
+    flag_white_path = build(flag_white, 1)
     flag_red_path = build(flag_red, 1)
-    flag_cross_path = build(flag_cross, 1)
 
     def bbox(d):
         n = [float(x) for x in re.findall(r'-?\d+\.?\d+|-?\d+', d)]
         xs = n[0::2]; ys = n[1::2]
         return [round(min(xs), 1), round(max(xs), 1), round(min(ys), 1), round(max(ys), 1)]
 
-    print("path bbox       ", bbox(sil_path))
-    print("windowsPath bbox", bbox(win_path))
-    print("flagRedPath bbox", bbox(flag_red_path))
-    print("flagCrossPath   ", bbox(flag_cross_path))
+    print("path bbox        ", bbox(sil_path))
+    print("windowsPath bbox ", bbox(win_path))
+    print("flagWhitePath bbox", bbox(flag_white_path))
+    print("flagRedPath bbox ", bbox(flag_red_path))
 
     ts = '''/**
  * Copenhagen skyline silhouette (vector paths), traced from
@@ -169,12 +174,13 @@ def main():
  * as a MacBook wallpaper; the silhouette is filled with a theme color so it
  * matches every palette, while the Danish flag keeps its real red + white.
  *
- * All four paths share one 2054x750 viewBox (mapped onto the previous skyline's
+ * All paths share one 2054x750 viewBox (mapped onto the previous skyline's
  * building box, so placement/scale are unchanged):
  *   path          - buildings + pole + ground; window holes via fill-rule evenodd.
  *   windowsPath   - enclosed windows; painted amber when the lights are on.
- *   flagRedPath   - the Danish flag's red field   (fixed FLAG_RED).
- *   flagCrossPath - the flag's white cross         (fixed FLAG_WHITE).
+ *   flagWhitePath - the whole flag as a solid WHITE backing (drawn first).
+ *   flagRedPath   - the flag's red field, drawn ON TOP so the white cross
+ *                   shows through with a single, naturally-connected edge.
  */
 
 /** Dannebrog red + white — these are NOT theme-tinted. */
@@ -188,12 +194,12 @@ export const COPENHAGEN_SKYLINE = {
   path: "%s",
   /** window-only path — painted over the silhouette with a warm amber glow */
   windowsPath: "%s",
-  /** Danish flag red field — rendered in FLAG_RED, never theme-tinted */
+  /** solid white flag backing — drawn first, FLAG_WHITE */
+  flagWhitePath: "%s",
+  /** red field drawn over the white backing — FLAG_RED; cross shows through */
   flagRedPath: "%s",
-  /** Danish flag white cross — rendered in FLAG_WHITE */
-  flagCrossPath: "%s",
 } as const;
-''' % (sil_path, win_path, flag_red_path, flag_cross_path)
+''' % (sil_path, win_path, flag_white_path, flag_red_path)
 
     open("lib/copenhagen-skyline.ts", "w").write(ts)
     print("wrote lib/copenhagen-skyline.ts", len(ts), "chars")

@@ -19,6 +19,10 @@ OUT_W, OUT_H = 3024, 1964          # MacBook Pro 14" native resolution
 SS = 3                              # supersample factor for crisp anti-aliasing
 HW, HH = OUT_W * SS, OUT_H * SS
 
+# Fraction of the width kept clear on each side so the skyline doesn't bleed off
+# the edges (the leftmost building's base was getting clipped at zero margin).
+SIDE_MARGIN = 0.05
+
 NORD_BG = (0x2E, 0x34, 0x40)        # Nord polar night (sky / background)
 SILHOUETTE = (0x22, 0x27, 0x31)     # buildings: a touch darker than the sky
 
@@ -79,12 +83,13 @@ def p3code_to_linp3(rgb):
 def load_paths():
     src = open("lib/copenhagen-skyline.ts").read()
     g = lambda key: re.search(key + r':\s*"([^"]+)"', src).group(1)
-    return g("path"), g("windowsPath"), g("flagRedPath"), g("flagCrossPath")
+    return g("path"), g("windowsPath"), g("flagRedPath"), g("flagWhitePath")
 
 
 def vb_to_hires(x, y):
-    s = SS * OUT_W / (B_X1 - B_X0)             # full-width fit
-    hx = (x - B_X0) * s
+    avail = OUT_W * (1 - 2 * SIDE_MARGIN)      # width minus left/right margins
+    s = SS * avail / (B_X1 - B_X0)
+    hx = SS * OUT_W * SIDE_MARGIN + (x - B_X0) * s
     hy = HH - (B_Y_BASE - y) * s               # base anchored to bottom edge
     return hx, hy
 
@@ -138,12 +143,12 @@ def rasterize_union(polys):
 
 # ------------------------------------------------------------- compose -------
 def main():
-    sil_d, win_d, flag_red_d, flag_cross_d = load_paths()
+    sil_d, win_d, flag_red_d, flag_white_d = load_paths()
     print("rasterizing silhouette + windows + flag ...")
     sil_cov = rasterize_union(flatten(sil_d))
     win_cov = rasterize_union(flatten(win_d))
     flag_red_cov = rasterize_union(flatten(flag_red_d))
-    flag_cross_cov = rasterize_union(flatten(flag_cross_d))
+    flag_white_cov = rasterize_union(flatten(flag_white_d))
 
     bg = srgb_to_linp3(NORD_BG)
     sil = srgb_to_linp3(SILHOUETTE)
@@ -171,11 +176,12 @@ def main():
     aw = win_cov[..., None]                   # crisp lit windows on top
     img = img * (1 - aw) + win * aw
 
-    # Danish flag on top: real red field + white cross, no glow, kept crisp.
+    # Danish flag on top: white backing first, then the red field over it, so
+    # the cross shows through with one naturally-connected edge. No glow.
+    awh = flag_white_cov[..., None]
+    img = img * (1 - awh) + flag_white * awh
     ar = flag_red_cov[..., None]
     img = img * (1 - ar) + flag_red * ar
-    ac = flag_cross_cov[..., None]
-    img = img * (1 - ac) + flag_white * ac
 
     out = (srgb_encode(img) * 255 + 0.5).astype(np.uint8)
     im = Image.fromarray(out, "RGB")
