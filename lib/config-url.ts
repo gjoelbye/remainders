@@ -8,6 +8,7 @@
  */
 
 import type { LocalConfig } from './types';
+import { DEFAULT_CONFIG } from './config-defaults';
 
 function b64urlEncode(bytes: Uint8Array): string {
   let bin = '';
@@ -23,9 +24,20 @@ function b64urlDecode(s: string): Uint8Array {
   return out;
 }
 
-/** Encode a config into a URL-safe string. */
+/**
+ * Encode a config into a URL-safe string. Only fields that differ from the
+ * defaults are included, so the URL stays short enough to survive copy/paste
+ * into a phone shortcut (which can truncate very long URLs). sanitizeConfig
+ * refills every omitted field from DEFAULT_CONFIG on decode.
+ */
 export function encodeConfig(cfg: LocalConfig): string {
-  return b64urlEncode(new TextEncoder().encode(JSON.stringify(cfg)));
+  const diff: Record<string, unknown> = {};
+  (Object.keys(cfg) as (keyof LocalConfig)[]).forEach((key) => {
+    if (JSON.stringify(cfg[key]) !== JSON.stringify(DEFAULT_CONFIG[key])) {
+      diff[key] = cfg[key];
+    }
+  });
+  return b64urlEncode(new TextEncoder().encode(JSON.stringify(diff)));
 }
 
 /** Decode a URL-safe string back into a raw object (validate with sanitizeConfig). */
