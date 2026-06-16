@@ -58,9 +58,13 @@ def main():
     red = (R >= 120) & (R - G > 55) & (R - B > 40) & (G < 150)
 
     # --- flag region: closing of red bridges the white cross ---
+    # The red field is the SOLID flag region (filled under the cross too); the
+    # white cross is painted on top. Drawing them as two complementary regions
+    # leaves a dark seam where their independently-fit boundaries disagree, so
+    # we keep red solid beneath the white — any edge mismatch then shows red.
     flag_region = close((red * 255).astype(np.uint8), 13)
-    flag_red = flag_region & ~white & ~black
-    flag_cross = flag_region & white
+    flag_red = flag_region & ~black           # solid flag (minus the pole)
+    flag_cross = flag_region & white          # white cross, drawn over the red
 
     # --- windows: enclosed white inside the black buildings (flood fill sky) ---
     from collections import deque
