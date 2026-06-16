@@ -86,6 +86,9 @@ export default function YearView({
   const daysLeft = calculateDaysLeftInYear(timezone);
   const totalDays = getTotalDaysInCurrentYear();
 
+  // The current-day dot is always filled (solid), even when the rest are rings.
+  const currentShape = dotStyle.shape === 'ring' ? 'circle' : dotStyle.shape;
+
   // Days View Layout (weekly grid - 2 weeks per row)
   if (yearViewLayout === 'days') {
     const aspectRatio = height / width;
@@ -166,7 +169,8 @@ export default function YearView({
     const allDots = [];
     for (let day = 1; day <= totalDays; day++) {
       const isFuture = day > currentDayOfYear;
-      const color = day < currentDayOfYear ? colors.past : day === currentDayOfYear ? colors.current : colors.future;
+      const isCurrent = day === currentDayOfYear;
+      const color = day < currentDayOfYear ? colors.past : isCurrent ? colors.current : colors.future;
 
       // Calculate position
       let row: number;
@@ -195,7 +199,7 @@ export default function YearView({
             ...dotDivStyle({
               size: dotSize,
               color,
-              shape: dotStyle.shape,
+              shape: isCurrent ? currentShape : dotStyle.shape,
               opacity: isFuture ? dotStyle.futureOpacity : 1,
               ringWidth: dotStyle.ringWidth,
             }),
@@ -383,6 +387,7 @@ export default function YearView({
         const col = i % 7;
 
         const isFuture = globalDayCounter > currentDayOfYear;
+        const isCurrent = globalDayCounter === currentDayOfYear;
         dots.push(
           <div
             key={`dot-${monthIndex}-${i}`}
@@ -393,7 +398,7 @@ export default function YearView({
               ...dotDivStyle({
                 size: dotSize,
                 color,
-                shape: dotStyle.shape,
+                shape: isCurrent ? currentShape : dotStyle.shape,
                 opacity: isFuture ? dotStyle.futureOpacity : 1,
                 ringWidth: dotStyle.ringWidth,
               }),

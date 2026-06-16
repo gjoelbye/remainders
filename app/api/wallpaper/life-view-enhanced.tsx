@@ -110,6 +110,9 @@ export default function LifeView({
   // Two Life layouts share these; each branch fills them in.
   const grouped = lifeGrouping.enabled;
   const WEEKS_PER_YEAR = 52;
+  // The current-week dot is always filled (solid) so it stands out even when the
+  // rest are ring outlines; other shapes are already filled.
+  const currentShape = dotStyle.shape === 'ring' ? 'circle' : dotStyle.shape;
   const pastDots = [];
   const futureDots = [];
   let currentDot = null;
@@ -176,7 +179,7 @@ export default function LifeView({
       if (i < weeksLived) {
         pastDots.push(dotSvgElement({ keyId: `past-${i}`, cx, cy, radius, color: colors.past, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth }));
       } else if (i === weeksLived) {
-        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth });
+        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: currentShape, ringWidth: dotStyle.ringWidth });
       } else {
         futureDots.push(dotSvgElement({ keyId: `future-${i}`, cx, cy, radius, color: colors.future, shape: dotStyle.shape, opacity: dotStyle.futureOpacity, ringWidth: dotStyle.ringWidth }));
       }
@@ -234,7 +237,7 @@ export default function LifeView({
       if (i < weeksLived) {
         pastDots.push(dotSvgElement({ keyId: `past-${i}`, cx, cy, radius, color: colors.past, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth }));
       } else if (i === weeksLived) {
-        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: dotStyle.shape, ringWidth: dotStyle.ringWidth });
+        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: currentShape, ringWidth: dotStyle.ringWidth });
       } else {
         futureDots.push(dotSvgElement({ keyId: `future-${i}`, cx, cy, radius, color: colors.future, shape: dotStyle.shape, opacity: dotStyle.futureOpacity, ringWidth: dotStyle.ringWidth }));
       }
