@@ -14,7 +14,6 @@ import { DEFAULT_CONFIG, sanitizeConfig } from '@/lib/config-defaults';
 import { encodeConfig } from '@/lib/config-url';
 import ViewModeToggle from '@/components/ViewModeToggle';
 import BirthDateInput from '@/components/BirthDateInput';
-import DeviceSelector from '@/components/DeviceSelector';
 import ThemeColorPicker from '@/components/ThemeColorPicker';
 import TextElementsEditor from '@/components/TextElementsEditor';
 import MilestonesEditor from '@/components/MilestonesEditor';
@@ -24,8 +23,13 @@ const WALLPAPER_PATH = '/api/wallpaper';
 const STORAGE_KEY = 'wallpaper-config';
 const PREVIEW_DEBOUNCE_MS = 500;
 
+const IPHONE_DEVICE = { brand: 'Apple', model: 'iPhone 14 Pro', width: 1179, height: 2556 };
+const MACBOOK_DEVICE = { brand: 'Apple', model: 'MacBook Pro 14"', width: 3024, height: 1964 };
+
 export default function Home() {
   const [loaded, setLoaded] = useState(false);
+  // Which screen: the device chooser, or the editor for the picked device.
+  const [screen, setScreen] = useState<'chooser' | 'editor'>('chooser');
 
   // Core config (mirrors LocalConfig, held as individual fields)
   const [viewMode, setViewMode] = useState(DEFAULT_CONFIG.viewMode);
@@ -142,16 +146,27 @@ export default function Home() {
     setBackgroundImage(cfg.backgroundImage);
   };
 
-  // Load config from localStorage on mount
+  // Load config from localStorage on mount. A returning user goes straight to
+  // the editor for their saved device; a first-time visitor sees the chooser.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) applyConfig(sanitizeConfig(JSON.parse(raw)));
+      if (raw) {
+        applyConfig(sanitizeConfig(JSON.parse(raw)));
+        setScreen('editor');
+      }
     } catch {
       /* keep defaults */
     }
     setLoaded(true);
   }, []);
+
+  // iPhone (portrait) vs MacBook (landscape) is derived from the device.
+  const deviceKind: 'iphone' | 'macbook' = device.width > device.height ? 'macbook' : 'iphone';
+  const chooseDevice = (kind: 'iphone' | 'macbook') => {
+    setDevice({ ...(kind === 'macbook' ? MACBOOK_DEVICE : IPHONE_DEVICE) });
+    setScreen('editor');
+  };
 
   // Persist to localStorage + regenerate the stateless wallpaper URL (debounced).
   useEffect(() => {
@@ -228,7 +243,11 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    applyConfig({ ...DEFAULT_CONFIG, birthDate });
+    applyConfig({
+      ...DEFAULT_CONFIG,
+      birthDate,
+      device: { brand: device.brand, modelName: device.model, width: device.width, height: device.height },
+    });
     setSelectedTheme('Dark Default');
     setShowResetConfirm(false);
     setSaveMessage('✓ Reset to defaults');
@@ -264,6 +283,28 @@ export default function Home() {
         <p className="text-xs text-neutral-500 font-mono tracking-widest uppercase">Memento Mori</p>
       </header>
 
+      {loaded && screen === 'chooser' && (
+        <div className="mx-auto max-w-2xl px-4 py-16 sm:py-24">
+          <h1 className="text-center text-xs uppercase tracking-widest text-neutral-400 mb-10">Choose your wallpaper</h1>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <button onClick={() => chooseDevice('iphone')} className="group p-8 bg-neutral-900 border border-neutral-800 rounded-lg hover:border-white transition-colors flex flex-col items-center gap-4">
+              <div className="w-12 h-20 rounded-xl border-2 border-neutral-500 group-hover:border-white transition-colors" />
+              <div className="text-white text-sm uppercase tracking-widest">iPhone</div>
+              <div className="text-neutral-500 text-xs">iPhone 14 Pro · lock screen</div>
+            </button>
+            <button onClick={() => chooseDevice('macbook')} className="group p-8 bg-neutral-900 border border-neutral-800 rounded-lg hover:border-white transition-colors flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-14 rounded-md border-2 border-neutral-500 group-hover:border-white transition-colors" />
+                <div className="w-28 h-1 bg-neutral-500 group-hover:bg-white rounded-b transition-colors" />
+              </div>
+              <div className="text-white text-sm uppercase tracking-widest">MacBook</div>
+              <div className="text-neutral-500 text-xs">MacBook Pro 14″ · desktop</div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loaded && screen === 'editor' && (
       <div className="mx-auto max-w-6xl p-4 lg:grid lg:grid-cols-[1fr_minmax(0,400px)] lg:gap-8 lg:items-start">
         {/* Preview (right on desktop, top on mobile) */}
         <aside className="lg:order-2 lg:sticky lg:top-[73px] mb-6 lg:mb-0">
@@ -326,6 +367,17 @@ export default function Home() {
                   <input type="checkbox" checked={lifeGrouping.decadeLabels} onChange={(e) => setLifeGrouping((p) => ({ ...p, decadeLabels: e.target.checked }))} className="w-4 h-4" />
                   <span className={lbl}>Show decade labels</span>
                 </label>
+
+                {deviceKind === 'macbook' && (
+                  <div className="space-y-2">
+                    <label className={lbl}>Columns</label>
+                    <div className="flex gap-2">
+                      <button onClick={() => setGridCols(0)} className={segBtn(gridCols === 0)}>Auto</button>
+                      <button onClick={() => setGridCols(11)} className={segBtn(gridCols === 11)}>11</button>
+                      <button onClick={() => setGridCols(14)} className={segBtn(gridCols === 14)}>14</button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -364,15 +416,19 @@ export default function Home() {
               </>
             )}
 
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={statsVisible} onChange={(e) => setStatsVisible(e.target.checked)} className="w-4 h-4" />
-              <span className={lbl}>Show stats footer</span>
-            </label>
+            {deviceKind === 'iphone' && (
+              <>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={statsVisible} onChange={(e) => setStatsVisible(e.target.checked)} className="w-4 h-4" />
+                  <span className={lbl}>Show stats footer</span>
+                </label>
 
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={widgetSpace} onChange={(e) => setWidgetSpace(e.target.checked)} className="w-4 h-4" />
-              <span className={lbl}>Room for widgets</span>
-            </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={widgetSpace} onChange={(e) => setWidgetSpace(e.target.checked)} className="w-4 h-4" />
+                  <span className={lbl}>Room for widgets</span>
+                </label>
+              </>
+            )}
 
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={skyline} onChange={(e) => setSkyline(e.target.checked)} className="w-4 h-4" />
@@ -390,7 +446,12 @@ export default function Home() {
           {/* Device */}
           <div className={card}>
             <h2 className={sectionTitle}>Device</h2>
-            <DeviceSelector selectedModel={device.model} onSelect={setDevice} />
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-white">{device.model}</span>
+              <button onClick={() => setScreen('chooser')} className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 transition-colors text-xs uppercase tracking-widest">
+                Change device
+              </button>
+            </div>
             <div className="space-y-2">
               <label className={lbl}>Timezone</label>
               <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 text-white focus:border-white outline-none text-sm">
@@ -501,7 +562,8 @@ export default function Home() {
             <TextElementsEditor textElements={textElements} onChange={setTextElements} />
           </div>
 
-          {/* Advanced — fine-tune alignment to the lock screen */}
+          {/* Advanced — fine-tune alignment to the lock screen (iPhone only) */}
+          {deviceKind === 'iphone' && (
           <div className={card}>
             <button onClick={() => setShowAdvanced((v) => !v)} className="w-full flex items-center justify-between">
               <h2 className={sectionTitle}>Advanced</h2>
@@ -558,6 +620,7 @@ export default function Home() {
               </>
             )}
           </div>
+          )}
 
           {/* Config */}
           <div className={card}>
@@ -575,6 +638,7 @@ export default function Home() {
           </div>
         </main>
       </div>
+      )}
 
       {/* Reset confirmation */}
       {showResetConfirm && (

@@ -128,12 +128,12 @@ export default function LifeView({
   // Desktop (landscape): grid in the upper region, bottom ~46% reserved for the
   // skyline. Phone: top reserved for the clock/widgets, grid below.
   const SAFE_AREA_TOP = desktop
-    ? height * 0.06
+    ? height * 0.05
     : computeSafeAreaTop(height, aspectRatio, layout.topPadding, widgetSpace);
-  const SAFE_AREA_BOTTOM = desktop ? height * 0.46 : height * layout.bottomPadding;
+  const SAFE_AREA_BOTTOM = desktop ? height * 0.45 : height * layout.bottomPadding;
 
   const adjustedSidePadding = desktop
-    ? 0.06
+    ? 0.04
     : aspectRatio > 2.1
     ? Math.min(layout.sidePadding, 0.08)
     : aspectRatio > 2.0
@@ -147,10 +147,12 @@ export default function LifeView({
   // Footer is three small stacked lines (% of month / year / life). Reserve a
   // fixed band so the grid is sized/centered ABOVE it and the footer is pinned
   // the same distance from the bottom margin.
+  // MacBook drops the stats footer for now and gives the whole area to the grid.
+  const showFooter = typography.statsVisible && !desktop;
   const footerLineFont = width * typography.fontSize * 0.85;
   const footerLineH = footerLineFont * 1.4;
-  const footerBlockH = typography.statsVisible ? footerLineH * 3 : 0;
-  const footerReserve = typography.statsVisible ? footerBlockH + height * 0.02 : 0;
+  const footerBlockH = showFooter ? footerLineH * 3 : 0;
+  const footerReserve = showFooter ? footerBlockH + height * 0.02 : 0;
   const gridAreaHeight = availableHeight - footerReserve;
 
   const WEEKS_PER_YEAR = 52;
@@ -245,7 +247,7 @@ export default function LifeView({
     // Keep sizes fractional (no floor) so the zoom slider scales smoothly
     // instead of plateauing on integer pixel steps. Desktop fits the grid to its
     // area (0.95 margin); phone uses the tuned BASE_GRID_SCALE zoom.
-    const baseScale = desktop ? 0.95 : BASE_GRID_SCALE;
+    const baseScale = desktop ? 1.0 : BASE_GRID_SCALE;
     const dotSize = Math.max(2, Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * baseScale * gridScale);
     const innerGap = Math.max(1, dotSize * INNER_SPACING);
     const blockGap = Math.max(2, dotSize * BLOCK_GAP_UNITS);
@@ -367,8 +369,8 @@ export default function LifeView({
       {/* Decade labels */}
       {decadeLabels}
 
-      {/* Stats Footer — three small stacked lines */}
-      {typography.statsVisible && (
+      {/* Stats Footer — three small stacked lines (hidden on desktop for now) */}
+      {showFooter && (
         <div
           style={{
             position: 'absolute',
