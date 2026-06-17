@@ -39,6 +39,7 @@ type Masks = {
 /** Devices that have pre-baked skyline masks under assets/masks/<key>/. */
 export const MASK_DEVICES: Record<string, { w: number; h: number }> = {
   'macbook-14': { w: 3024, h: 1964 },
+  'iphone-14-pro': { w: 1179, h: 2556 },
 };
 
 /** Return the mask-set key for a (width,height), or null if none is baked. */

@@ -62,11 +62,15 @@ export async function GET(request: NextRequest) {
       'Cache-Control': `public, max-age=0, s-maxage=${secsToMidnight}, stale-while-revalidate=86400`,
     };
 
-    // Desktop (landscape) wallpaper: render only the life-grid as a transparent
-    // P3 overlay, then composite it over a pre-baked Display-P3 + true-bloom
-    // skyline base (lib/wallpaper-compose) — all in the Node runtime.
-    const maskKey = config.viewMode === 'life' && width > height ? maskKeyFor(width, height) : null;
-    if (maskKey) {
+    // True-P3 + bloom path: render the life-grid as a transparent P3 overlay,
+    // then composite it over a pre-baked Display-P3 + true-bloom skyline base
+    // (lib/wallpaper-compose) — all in the Node runtime. Desktop (landscape)
+    // always uses it; portrait (iPhone) uses it for a solid background (gradients
+    // / background images fall back to the original single-pass renderer).
+    const desktop = width > height;
+    const maskKey = config.viewMode === 'life' ? maskKeyFor(width, height) : null;
+    const canCompose = !!maskKey && (desktop || (config.background.mode === 'solid' && !config.backgroundImage));
+    if (maskKey && canCompose) {
       const p3 = (c: string) => toP3Hex(c);
       const overlay = LifeView({
         width,
@@ -87,18 +91,30 @@ export async function GET(request: NextRequest) {
         dotStyle: config.dotStyle,
         lifeExpectancyYears: config.lifeExpectancyYears,
         lifeGrouping: config.lifeGrouping,
-        gridScale: 1, // desktop fits the grid to its area
+        widgetSpace: config.widgetSpace,
+        gridScale: desktop ? 1 : config.gridScale, // desktop fits to its area
         gridOffsetY: config.gridOffsetY,
         footerOffsetY: config.footerOffsetY,
-        gridCols: config.gridCols > 0 ? config.gridCols : 11,
+        gridCols: desktop ? (config.gridCols > 0 ? config.gridCols : 11) : config.gridCols,
         overlay: true,
-        desktop: true,
+        desktop,
         skyline: false,
       });
       const overlayPng = Buffer.from(await new ImageResponse(overlay, { width, height }).arrayBuffer());
-      // Skyline silhouette tint: a touch darker than the sky (night silhouette).
-      const bg = hexToRgb(config.colors.background);
-      const silhouette = rgbToHex({ r: bg.r * 0.72, g: bg.g * 0.72, b: bg.b * 0.72 });
+
+      let silhouette: string;
+      let offsetY = 0;
+      if (desktop) {
+        // Night silhouette: a touch darker than the sky.
+        const bg = hexToRgb(config.colors.background);
+        silhouette = rgbToHex({ r: bg.r * 0.72, g: bg.g * 0.72, b: bg.b * 0.72 });
+      } else {
+        // iPhone keeps its lighter tint; nudge for the chosen ground line
+        // (masks are baked at baseline 0.24).
+        silhouette = config.colors.future;
+        offsetY = Math.round((config.skylineBaseline - 0.24) * height);
+      }
+
       const png = await composeWallpaper({
         device: maskKey,
         background: config.colors.background,
@@ -107,6 +123,7 @@ export async function GET(request: NextRequest) {
         lights: config.skylineLights,
         flag: config.skyline,
         gridPng: overlayPng,
+        offsetY,
       });
       return new Response(new Uint8Array(png), { status: 200, headers: pngHeaders });
     }
