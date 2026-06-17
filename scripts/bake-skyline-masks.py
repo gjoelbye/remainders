@@ -138,11 +138,15 @@ def bake(name, dev):
     flag_red = rasterize_union(flatten(flag_red_d, vb), hw, hh, w, h)
     flag_white = rasterize_union(flatten(flag_white_d, vb), hw, hh, w, h)
 
-    # Center the VISIBLE silhouette (buildings + ground; flag excluded) so the
-    # base has equal left/right margins. The flag rides along (it's a small
-    # accent that may extend a bit past the rightmost wall). MacBook only.
+    # Center the BUILDING WALLS so they have equal left/right margins. We use the
+    # building-body band (skip the bottom ground mound, which tapers wider on one
+    # side, and the top spires) to find the true left/right walls. The flag rides
+    # along (a small accent that may sit a bit past the rightmost wall). Mac only.
     if dev['place'] == 'bottom':
-        cols = np.where(sil.max(axis=0) > 0.05)[0]
+        rows = np.where(sil.max(axis=1) > 0.05)[0]
+        top, bot = rows.min(), rows.max()
+        band = sil[top + int(0.25 * (bot - top)): top + int(0.65 * (bot - top))]
+        cols = np.where(band.max(axis=0) > 0.05)[0]
         shift = int(round(w / 2 - (cols.min() + cols.max()) / 2))
         if shift:
             def shx(a):
@@ -153,7 +157,7 @@ def bake(name, dev):
                     o[:, :shift] = a[:, -shift:]
                 return o
             sil, win, flag_red, flag_white = shx(sil), shx(win), shx(flag_red), shx(flag_white)
-            print(f"  centered silhouette: shift {shift}px")
+            print(f"  centered building walls: shift {shift}px")
 
     # Window holes: the silhouette shows building faces but NOT the windows, so
     # lights-off reveals the background through the windows (as the web does).

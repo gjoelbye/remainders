@@ -173,8 +173,11 @@ export async function composeWallpaper(opts: ComposeOptions): Promise<Buffer> {
     if (maxx >= 0) {
       const dotR = Math.max(8, Math.max(maxx - minx, maxy - miny) / 2);
       const raw = { width: W, height: H, channels: 1 as const };
-      glowS = await sharp(a, { raw }).blur(Math.max(0.8, dotR * 1.0)).raw().toBuffer();
-      glowL = await sharp(a, { raw }).blur(Math.max(3, dotR * 2.8)).raw().toBuffer();
+      // toColourspace('b-w') forces a single-channel result — without it sharp
+      // returns 3 channels and the single-channel indexing smears the glow into
+      // horizontal red streaks across the middle of the image.
+      glowS = await sharp(a, { raw }).blur(Math.max(0.8, dotR * 1.0)).toColourspace('b-w').raw().toBuffer();
+      glowL = await sharp(a, { raw }).blur(Math.max(3, dotR * 2.8)).toColourspace('b-w').raw().toBuffer();
       dotA = a;
       redLin = p3CodeToLinP3(hexToRgb(opts.currentColor));
     }
