@@ -129,8 +129,23 @@ export default function LifeView({
   // Total weeks (years × 52 weeks/year)
   const TOTAL_DOTS = Math.round(LIFE_EXPECTANCY_YEARS * 52);
 
-  const diffTime = Math.abs(today.getTime() - birth.getTime());
-  const weeksLived = Math.min(Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7)), TOTAL_DOTS);
+  // Per-year-aligned index: each year-block fills by the weeks SINCE THAT year's
+  // birthday (0..51), and every completed year is exactly 52 dots — so the
+  // 52-vs-52.18-weeks drift never accumulates across blocks. Block N is your
+  // (N+1)th year of life; it fills as that year progresses and locks at 52 once
+  // the next birthday passes.
+  const WEEK_MS = 1000 * 60 * 60 * 24 * 7;
+  const dateToIndex = (d: Date): number => {
+    const bMonth = birth.getMonth();
+    const bDay = birth.getDate();
+    const bdayThatYear = new Date(d.getFullYear(), bMonth, bDay).getTime();
+    const before = d.getTime() < bdayThatYear;
+    const age = d.getFullYear() - birth.getFullYear() - (before ? 1 : 0);
+    const lastBday = new Date(d.getFullYear() - (before ? 1 : 0), bMonth, bDay).getTime();
+    const wInYear = Math.floor((d.getTime() - lastBday) / WEEK_MS);
+    return Math.max(0, age) * 52 + Math.min(Math.max(wInYear, 0), 51);
+  };
+  const weeksLived = Math.min(dateToIndex(today), TOTAL_DOTS);
   const lifePercentage = ((weeksLived / TOTAL_DOTS) * 100).toFixed(1);
 
   // Layout Calculations with Aspect Ratio Support
@@ -181,8 +196,7 @@ export default function LifeView({
   // on overlap). A milestone fills [start..end], where end is the current week
   // when `ongoing`, the end date's week when set, or just the start week.
   const milestoneColorByWeek = new Map<number, string>();
-  const weekOf = (dateStr: string) =>
-    Math.floor((new Date(dateStr).getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 7));
+  const weekOf = (dateStr: string) => dateToIndex(new Date(dateStr));
   for (const m of milestones) {
     const s = weekOf(m.start);
     const e = m.ongoing ? weeksLived : m.end ? weekOf(m.end) : s;
