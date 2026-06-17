@@ -138,6 +138,23 @@ def bake(name, dev):
     flag_red = rasterize_union(flatten(flag_red_d, vb), hw, hh, w, h)
     flag_white = rasterize_union(flatten(flag_white_d, vb), hw, hh, w, h)
 
+    # Center the VISIBLE silhouette (buildings + ground; flag excluded) so the
+    # base has equal left/right margins. The flag rides along (it's a small
+    # accent that may extend a bit past the rightmost wall). MacBook only.
+    if dev['place'] == 'bottom':
+        cols = np.where(sil.max(axis=0) > 0.05)[0]
+        shift = int(round(w / 2 - (cols.min() + cols.max()) / 2))
+        if shift:
+            def shx(a):
+                o = np.zeros_like(a)
+                if shift > 0:
+                    o[:, shift:] = a[:, :-shift]
+                else:
+                    o[:, :shift] = a[:, -shift:]
+                return o
+            sil, win, flag_red, flag_white = shx(sil), shx(win), shx(flag_red), shx(flag_white)
+            print(f"  centered silhouette: shift {shift}px")
+
     # Window holes: the silhouette shows building faces but NOT the windows, so
     # lights-off reveals the background through the windows (as the web does).
     sil = np.clip(sil - win, 0, 1)

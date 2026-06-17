@@ -159,11 +159,15 @@ export default function LifeView({
   // fixed band so the grid is sized/centered ABOVE it and the footer is pinned
   // the same distance from the bottom margin.
   // MacBook drops the stats footer for now and gives the whole area to the grid.
-  const showFooter = typography.statsVisible && !desktop && !onlyCurrent;
+  // Reserve the footer space the SAME in every pass — including the dot-only
+  // pass — so the grid layout (and thus the current dot's size/position) is
+  // identical; only RENDER the footer outside the dot-only pass.
+  const reserveFooter = typography.statsVisible && !desktop;
+  const showFooter = reserveFooter && !onlyCurrent;
   const footerLineFont = width * typography.fontSize * 0.85;
   const footerLineH = footerLineFont * 1.4;
-  const footerBlockH = showFooter ? footerLineH * 3 : 0;
-  const footerReserve = showFooter ? footerBlockH + height * 0.02 : 0;
+  const footerBlockH = reserveFooter ? footerLineH * 3 : 0;
+  const footerReserve = reserveFooter ? footerBlockH + height * 0.02 : 0;
   const gridAreaHeight = availableHeight - footerReserve;
 
   const WEEKS_PER_YEAR = 52;

@@ -204,6 +204,24 @@ export async function composeWallpaper(opts: ComposeOptions): Promise<Buffer> {
       const i = y * W + x;
       let r = bg[0], g = bg[1], b = bg[2];
 
+      // Dots first...
+      if (grid) {
+        const gi4 = i * 4;
+        const ga = grid[gi4 + 3] / 255;
+        if (ga > 0) {
+          const gr = DEC[grid[gi4]], gg = DEC[grid[gi4 + 1]], gb = DEC[grid[gi4 + 2]];
+          r = r * (1 - ga) + gr * ga; g = g * (1 - ga) + gg * ga; b = b * (1 - ga) + gb * ga;
+        }
+      }
+
+      if (dotA) {
+        const gi = (glowS![i] / 255) * 1.15 + (glowL![i] / 255) * 0.8; // red bloom (additive)
+        if (gi > 0) { r += redLin[0] * gi; g += redLin[1] * gi; b += redLin[2] * gi; }
+        const da = dotA[i] / 255; // crisp vibrant dot
+        if (da > 0) { r = r * (1 - da) + redLin[0] * da; g = g * (1 - da) + redLin[1] * da; b = b * (1 - da) + redLin[2] * da; }
+      }
+
+      // ...then the city ON TOP of the dots (occludes the grid where they overlap).
       if (skyRow) {
         const mi = sy * W + x;
         const s = sc[mi] / 255;
@@ -220,22 +238,6 @@ export async function composeWallpaper(opts: ComposeOptions): Promise<Buffer> {
           const fr = frc[mi] / 255;
           if (fr > 0) { r = r * (1 - fr) + red[0] * fr; g = g * (1 - fr) + red[1] * fr; b = b * (1 - fr) + red[2] * fr; }
         }
-      }
-
-      if (grid) {
-        const gi4 = i * 4;
-        const ga = grid[gi4 + 3] / 255;
-        if (ga > 0) {
-          const gr = DEC[grid[gi4]], gg = DEC[grid[gi4 + 1]], gb = DEC[grid[gi4 + 2]];
-          r = r * (1 - ga) + gr * ga; g = g * (1 - ga) + gg * ga; b = b * (1 - ga) + gb * ga;
-        }
-      }
-
-      if (dotA) {
-        const gi = (glowS![i] / 255) * 1.15 + (glowL![i] / 255) * 0.8; // red bloom (additive)
-        if (gi > 0) { r += redLin[0] * gi; g += redLin[1] * gi; b += redLin[2] * gi; }
-        const da = dotA[i] / 255; // crisp vibrant dot on top
-        if (da > 0) { r = r * (1 - da) + redLin[0] * da; g = g * (1 - da) + redLin[1] * da; b = b * (1 - da) + redLin[2] * da; }
       }
 
       const o = i * 3;
