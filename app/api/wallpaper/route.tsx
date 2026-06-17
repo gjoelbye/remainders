@@ -13,6 +13,8 @@ import { DEFAULT_CONFIG, sanitizeConfig } from '@/lib/config-defaults';
 import { decodeConfig } from '@/lib/config-url';
 import { getDateInTimezone } from '@/lib/calcs';
 import type { LocalConfig } from '@/lib/types';
+import { composeWallpaper, maskKeyFor } from '@/lib/wallpaper-compose';
+import { toP3Hex, hexToRgb, rgbToHex } from '@/lib/p3';
 import LifeView from './life-view-enhanced';
 import YearView from './year-view-enhanced';
 
@@ -50,6 +52,64 @@ export async function GET(request: NextRequest) {
     // Render at the device's native resolution (e.g. iPhone 14 Pro = 1179×2556).
     const width = config.device.width;
     const height = config.device.height;
+
+    // Cache at the CDN until the next local midnight: only the current-day dot
+    // changes day-to-day, so re-rendering more often is wasteful.
+    const secsToday = currentDate.getHours() * 3600 + currentDate.getMinutes() * 60 + currentDate.getSeconds();
+    const secsToMidnight = Math.max(60, 86400 - secsToday);
+    const pngHeaders = {
+      'Content-Type': 'image/png',
+      'Cache-Control': `public, max-age=0, s-maxage=${secsToMidnight}, stale-while-revalidate=86400`,
+    };
+
+    // Desktop (landscape) wallpaper: render only the life-grid as a transparent
+    // P3 overlay, then composite it over a pre-baked Display-P3 + true-bloom
+    // skyline base (lib/wallpaper-compose) — all in the Node runtime.
+    const maskKey = config.viewMode === 'life' && width > height ? maskKeyFor(width, height) : null;
+    if (maskKey) {
+      const p3 = (c: string) => toP3Hex(c);
+      const overlay = LifeView({
+        width,
+        height,
+        birthDate: config.birthDate,
+        colors: {
+          background: p3(config.colors.background),
+          past: p3(config.colors.past),
+          current: p3(config.colors.current),
+          future: p3(config.colors.future),
+          text: p3(config.colors.text),
+        },
+        typography: config.typography,
+        layout: config.layout,
+        textElements: config.textElements,
+        milestones: config.milestones,
+        currentDate,
+        dotStyle: config.dotStyle,
+        lifeExpectancyYears: config.lifeExpectancyYears,
+        lifeGrouping: config.lifeGrouping,
+        gridScale: 1, // desktop fits the grid to its area
+        gridOffsetY: config.gridOffsetY,
+        footerOffsetY: config.footerOffsetY,
+        gridCols: config.gridCols > 0 ? config.gridCols : 11,
+        overlay: true,
+        desktop: true,
+        skyline: false,
+      });
+      const overlayPng = Buffer.from(await new ImageResponse(overlay, { width, height }).arrayBuffer());
+      // Skyline silhouette tint: a touch darker than the sky (night silhouette).
+      const bg = hexToRgb(config.colors.background);
+      const silhouette = rgbToHex({ r: bg.r * 0.72, g: bg.g * 0.72, b: bg.b * 0.72 });
+      const png = await composeWallpaper({
+        device: maskKey,
+        background: config.colors.background,
+        silhouette,
+        skyline: config.skyline,
+        lights: config.skylineLights,
+        flag: config.skyline,
+        gridPng: overlayPng,
+      });
+      return new Response(new Uint8Array(png), { status: 200, headers: pngHeaders });
+    }
 
     const backgroundImageProp = config.backgroundImage?.url
       ? { url: config.backgroundImage.url, opacity: config.backgroundImage.opacity ?? 0.1 }
@@ -98,19 +158,8 @@ export async function GET(request: NextRequest) {
 
     const imageResponse = new ImageResponse(view, { width, height });
 
-    // Cache at the CDN until the next local midnight: the only thing that changes
-    // day-to-day is the current-day dot, so re-rendering more often is wasteful.
-    // Every fetch within the day is served from cache (fast, no re-render).
-    const secsToday = currentDate.getHours() * 3600 + currentDate.getMinutes() * 60 + currentDate.getSeconds();
-    const secsToMidnight = Math.max(60, 86400 - secsToday);
-
-    return new Response(imageResponse.body, {
-      status: 200,
-      headers: {
-        'Content-Type': 'image/png',
-        'Cache-Control': `public, max-age=0, s-maxage=${secsToMidnight}, stale-while-revalidate=86400`,
-      },
-    });
+    // Every fetch within the day is served from CDN cache (fast, no re-render).
+    return new Response(imageResponse.body, { status: 200, headers: pngHeaders });
   } catch (error) {
     console.error('Error generating wallpaper:', error);
     const message = error instanceof Error ? error.message : String(error);

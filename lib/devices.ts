@@ -15,6 +15,14 @@ import { DeviceModel } from './types';
  * Organized by brand and sorted by release date (newest first)
  */
 export const DEVICE_MODELS: DeviceModel[] = [
+  // Apple Mac (landscape desktop wallpapers — life grid on top, skyline below)
+  {
+    brand: 'Apple',
+    model: 'MacBook Pro 14"',
+    width: 3024,
+    height: 1964,
+  },
+
   // Apple iPhone Models
   {
     brand: 'Apple',

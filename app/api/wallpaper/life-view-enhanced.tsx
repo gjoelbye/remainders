@@ -56,6 +56,17 @@ interface LifeViewProps {
   gridCols?: number;
   /** Advanced: raise (+) / lower (−) the footer text, fraction of height */
   footerOffsetY?: number;
+  /**
+   * Overlay mode: transparent background, no skyline / bg-image — render only
+   * the grid + decade labels + footer, to be composited over a pre-baked
+   * skyline base by lib/wallpaper-compose. Colors should already be P3-encoded.
+   */
+  overlay?: boolean;
+  /**
+   * Desktop (landscape) layout: place the grid in the UPPER region and reserve
+   * the bottom for the skyline; fit the grid to its area (no phone zoom/nudge).
+   */
+  desktop?: boolean;
 }
 
 export default function LifeView({
@@ -96,6 +107,8 @@ export default function LifeView({
   gridOffsetY = 0,
   gridCols = 0,
   footerOffsetY = 0,
+  overlay = false,
+  desktop = false,
 }: LifeViewProps) {
   // Life Logic
   const LIFE_EXPECTANCY_YEARS = lifeExpectancyYears;
@@ -112,10 +125,16 @@ export default function LifeView({
   // Layout Calculations with Aspect Ratio Support
   const aspectRatio = height / width;
 
-  const SAFE_AREA_TOP = computeSafeAreaTop(height, aspectRatio, layout.topPadding, widgetSpace);
-  const SAFE_AREA_BOTTOM = height * layout.bottomPadding;
+  // Desktop (landscape): grid in the upper region, bottom ~46% reserved for the
+  // skyline. Phone: top reserved for the clock/widgets, grid below.
+  const SAFE_AREA_TOP = desktop
+    ? height * 0.06
+    : computeSafeAreaTop(height, aspectRatio, layout.topPadding, widgetSpace);
+  const SAFE_AREA_BOTTOM = desktop ? height * 0.46 : height * layout.bottomPadding;
 
-  const adjustedSidePadding = aspectRatio > 2.1
+  const adjustedSidePadding = desktop
+    ? 0.06
+    : aspectRatio > 2.1
     ? Math.min(layout.sidePadding, 0.08)
     : aspectRatio > 2.0
     ? Math.min(layout.sidePadding, 0.09)
@@ -224,8 +243,10 @@ export default function LifeView({
     const wUnits = blockCols * BLOCK_COLS + INNER_SPACING * blockCols * (BLOCK_COLS - 1) + BLOCK_GAP_UNITS * (blockCols - 1);
     const hUnits = blockRows * BLOCK_ROWS + INNER_SPACING * blockRows * (BLOCK_ROWS - 1) + BLOCK_GAP_UNITS * (blockRows - 1);
     // Keep sizes fractional (no floor) so the zoom slider scales smoothly
-    // instead of plateauing on integer pixel steps.
-    const dotSize = Math.max(2, Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * BASE_GRID_SCALE * gridScale);
+    // instead of plateauing on integer pixel steps. Desktop fits the grid to its
+    // area (0.95 margin); phone uses the tuned BASE_GRID_SCALE zoom.
+    const baseScale = desktop ? 0.95 : BASE_GRID_SCALE;
+    const dotSize = Math.max(2, Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * baseScale * gridScale);
     const innerGap = Math.max(1, dotSize * INNER_SPACING);
     const blockGap = Math.max(2, dotSize * BLOCK_GAP_UNITS);
 
@@ -237,7 +258,7 @@ export default function LifeView({
     // Always center on the screen (overflowing symmetrically when zoomed in),
     // rather than pinning to the side padding.
     startX = (width - gridWidth) / 2;
-    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * (BASE_GRID_OFFSET_Y + gridOffsetY);
+    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * ((desktop ? 0 : BASE_GRID_OFFSET_Y) + gridOffsetY);
 
     for (let i = 0; i < TOTAL_DOTS; i++) {
       const year = Math.floor(i / WEEKS_PER_YEAR);
@@ -301,14 +322,14 @@ export default function LifeView({
       style={{
         width: '100%',
         height: '100%',
-        ...buildBackgroundStyle(colors, background),
+        ...(overlay ? { backgroundColor: 'transparent' } : buildBackgroundStyle(colors, background)),
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
       }}
     >
       {/* Background image layer */}
-      {backgroundImage?.url && (
+      {!overlay && backgroundImage?.url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={backgroundImage.url}
@@ -324,8 +345,9 @@ export default function LifeView({
           }}
         />
       )}
-      {/* Copenhagen skyline behind the clock */}
-      {skyline && skylineElement({ width, height, color: colors.future, sidePadding: SAFE_WIDTH_PADDING, baseline: skylineBaseline, lights: skylineLights })}
+      {/* Copenhagen skyline behind the clock (skipped in overlay mode — the
+          skyline is supplied by the pre-baked P3 base in wallpaper-compose) */}
+      {!overlay && skyline && skylineElement({ width, height, color: colors.future, sidePadding: SAFE_WIDTH_PADDING, baseline: skylineBaseline, lights: skylineLights })}
       {/* Main Grid SVG */}
       <svg
         width={gridWidth}

@@ -1,0 +1,11 @@
+{
+  "w": 3024,
+  "h": 1964,
+  "place": "bottom",
+  "glow": {
+    "smallRadius": 7,
+    "largeRadius": 34,
+    "smallStrength": 0.55,
+    "largeStrength": 0.42
+  }
+}
