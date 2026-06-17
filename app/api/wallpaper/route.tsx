@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const canCompose = !!maskKey && (desktop || (config.background.mode === 'solid' && !config.backgroundImage));
     if (maskKey && canCompose) {
       const p3 = (c: string) => toP3Hex(c);
-      const overlay = LifeView({
+      const gridProps = {
         width,
         height,
         birthDate: config.birthDate,
@@ -92,15 +92,18 @@ export async function GET(request: NextRequest) {
         lifeExpectancyYears: config.lifeExpectancyYears,
         lifeGrouping: config.lifeGrouping,
         widgetSpace: config.widgetSpace,
-        gridScale: desktop ? 1 : config.gridScale, // desktop fits to its area
+        gridScale: config.gridScale, // 1.0 = fit; the Mac grid-size slider scales it
         gridOffsetY: config.gridOffsetY,
         footerOffsetY: config.footerOffsetY,
-        gridCols: desktop ? (config.gridCols > 0 ? config.gridCols : 11) : config.gridCols,
+        gridCols: desktop ? 14 : config.gridCols, // MacBook is always 14×6
         overlay: true,
         desktop,
         skyline: false,
-      });
-      const overlayPng = Buffer.from(await new ImageResponse(overlay, { width, height }).arrayBuffer());
+      };
+      // The grid with the current-week dot OMITTED, plus the dot on its own — the
+      // dot is composited with a bloom + vibrant P3 by lib/wallpaper-compose.
+      const overlayPng = Buffer.from(await new ImageResponse(LifeView({ ...gridProps, currentDotMode: 'omit' }), { width, height }).arrayBuffer());
+      const currentDotPng = Buffer.from(await new ImageResponse(LifeView({ ...gridProps, currentDotMode: 'only' }), { width, height }).arrayBuffer());
 
       let silhouette: string;
       let offsetY = 0;
@@ -124,6 +127,8 @@ export async function GET(request: NextRequest) {
         flag: config.skyline,
         gridPng: overlayPng,
         offsetY,
+        currentDotPng,
+        currentColor: config.colors.current,
       });
       return new Response(new Uint8Array(png), { status: 200, headers: pngHeaders });
     }

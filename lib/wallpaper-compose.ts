@@ -15,7 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import sharp from 'sharp';
-import { srgbToLinP3, p3CodeToLinP3, srgbDecode, srgbEncode } from './p3';
+import { srgbToLinP3, p3CodeToLinP3, srgbDecode, srgbEncode, hexToRgb, type LinRGB } from './p3';
 
 const ASSETS = path.join(process.cwd(), 'assets');
 const ICC_PATH = path.join(ASSETS, 'display-p3.icc');
@@ -131,6 +131,8 @@ export type ComposeOptions = {
   flag: boolean;
   gridPng?: Buffer | null; // transparent RGBA PNG overlay at the device resolution
   offsetY?: number; // vertical px shift of the skyline group (baseline nudge)
+  currentDotPng?: Buffer | null; // transparent RGBA PNG with ONLY the current-week dot
+  currentColor?: string; // sRGB hex of the current dot — rendered vibrant P3 + glow
 };
 
 export async function composeWallpaper(opts: ComposeOptions): Promise<Buffer> {
@@ -149,6 +151,33 @@ export async function composeWallpaper(opts: ComposeOptions): Promise<Buffer> {
   if (opts.gridPng) {
     const { data } = await sharp(opts.gridPng).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     grid = data; // RGBA
+  }
+
+  // Glowing current-week dot: extract its alpha, blur it at two radii for the
+  // bloom, and tint everything vibrant P3-native red so it stands out.
+  let dotA: Buffer | null = null;
+  let glowS: Buffer | null = null;
+  let glowL: Buffer | null = null;
+  let redLin: LinRGB = [0, 0, 0];
+  if (opts.currentDotPng && opts.currentColor) {
+    const { data } = await sharp(opts.currentDotPng).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const a = Buffer.allocUnsafe(W * H);
+    let minx = W, miny = H, maxx = -1, maxy = -1;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const v = data[(y * W + x) * 4 + 3];
+        a[y * W + x] = v;
+        if (v > 30) { if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+      }
+    }
+    if (maxx >= 0) {
+      const dotR = Math.max(8, Math.max(maxx - minx, maxy - miny) / 2);
+      const raw = { width: W, height: H, channels: 1 as const };
+      glowS = await sharp(a, { raw }).blur(Math.max(0.8, dotR * 1.0)).raw().toBuffer();
+      glowL = await sharp(a, { raw }).blur(Math.max(3, dotR * 2.8)).raw().toBuffer();
+      dotA = a;
+      redLin = p3CodeToLinP3(hexToRgb(opts.currentColor));
+    }
   }
 
   // sRGB-decode LUT (grid pixels) + linear->code LUT (final encode).
@@ -200,6 +229,13 @@ export async function composeWallpaper(opts: ComposeOptions): Promise<Buffer> {
           const gr = DEC[grid[gi4]], gg = DEC[grid[gi4 + 1]], gb = DEC[grid[gi4 + 2]];
           r = r * (1 - ga) + gr * ga; g = g * (1 - ga) + gg * ga; b = b * (1 - ga) + gb * ga;
         }
+      }
+
+      if (dotA) {
+        const gi = (glowS![i] / 255) * 1.15 + (glowL![i] / 255) * 0.8; // red bloom (additive)
+        if (gi > 0) { r += redLin[0] * gi; g += redLin[1] * gi; b += redLin[2] * gi; }
+        const da = dotA[i] / 255; // crisp vibrant dot on top
+        if (da > 0) { r = r * (1 - da) + redLin[0] * da; g = g * (1 - da) + redLin[1] * da; b = b * (1 - da) + redLin[2] * da; }
       }
 
       const o = i * 3;

@@ -164,7 +164,17 @@ export default function Home() {
   // iPhone (portrait) vs MacBook (landscape) is derived from the device.
   const deviceKind: 'iphone' | 'macbook' = device.width > device.height ? 'macbook' : 'iphone';
   const chooseDevice = (kind: 'iphone' | 'macbook') => {
-    setDevice({ ...(kind === 'macbook' ? MACBOOK_DEVICE : IPHONE_DEVICE) });
+    if (kind === 'macbook') {
+      setDevice({ ...MACBOOK_DEVICE });
+      setGridScale(1); // 1.0 = fit; the Mac grid-size slider scales from here
+      setGridOffsetY(0);
+      setGridCols(14);
+    } else {
+      setDevice({ ...IPHONE_DEVICE });
+      setGridScale(DEFAULT_CONFIG.gridScale);
+      setGridOffsetY(DEFAULT_CONFIG.gridOffsetY);
+      setGridCols(DEFAULT_CONFIG.gridCols);
+    }
     setScreen('editor');
   };
 
@@ -368,16 +378,6 @@ export default function Home() {
                   <span className={lbl}>Show decade labels</span>
                 </label>
 
-                {deviceKind === 'macbook' && (
-                  <div className="space-y-2">
-                    <label className={lbl}>Columns</label>
-                    <div className="flex gap-2">
-                      <button onClick={() => setGridCols(0)} className={segBtn(gridCols === 0)}>Auto</button>
-                      <button onClick={() => setGridCols(11)} className={segBtn(gridCols === 11)}>11</button>
-                      <button onClick={() => setGridCols(14)} className={segBtn(gridCols === 14)}>14</button>
-                    </div>
-                  </div>
-                )}
               </>
             )}
 
@@ -562,8 +562,7 @@ export default function Home() {
             <TextElementsEditor textElements={textElements} onChange={setTextElements} />
           </div>
 
-          {/* Advanced — fine-tune alignment to the lock screen (iPhone only) */}
-          {deviceKind === 'iphone' && (
+          {/* Advanced — scale + position the grid (iPhone also aligns to the lock screen) */}
           <div className={card}>
             <button onClick={() => setShowAdvanced((v) => !v)} className="w-full flex items-center justify-between">
               <h2 className={sectionTitle}>Advanced</h2>
@@ -572,47 +571,56 @@ export default function Home() {
 
             {showAdvanced && (
               <>
-                <p className="text-xs text-neutral-500">Nudge everything to line up with your clock and widgets.</p>
+                <p className="text-xs text-neutral-500">
+                  {deviceKind === 'macbook' ? 'Scale the grid and move it up or down.' : 'Nudge everything to line up with your clock and widgets.'}
+                </p>
 
                 <div className="space-y-2">
                   <label className={lbl}>Grid size: {Math.round(gridScale * 100)}%</label>
-                  <input type="range" min="0.6" max="1.6" step="0.02" value={gridScale} onChange={(e) => setGridScale(parseFloat(e.target.value))} className="w-full" />
+                  <input type="range" min="0.5" max="1.6" step="0.02" value={gridScale} onChange={(e) => setGridScale(parseFloat(e.target.value))} className="w-full" />
                 </div>
 
                 <div className="space-y-2">
                   <label className={lbl}>Grid vertical position</label>
-                  <input type="range" min="-0.15" max="0.15" step="0.005" value={gridOffsetY} onChange={(e) => setGridOffsetY(parseFloat(e.target.value))} className="w-full" />
+                  <input type="range" min="-0.2" max="0.2" step="0.005" value={gridOffsetY} onChange={(e) => setGridOffsetY(parseFloat(e.target.value))} className="w-full" />
                 </div>
 
-                <div className="space-y-2">
-                  <label className={lbl}>Text position (raise / lower)</label>
-                  <input type="range" min="-0.12" max="0.12" step="0.005" value={footerOffsetY} onChange={(e) => setFooterOffsetY(parseFloat(e.target.value))} className="w-full" />
-                </div>
+                {deviceKind === 'iphone' && (
+                  <>
+                    <div className="space-y-2">
+                      <label className={lbl}>Text position (raise / lower)</label>
+                      <input type="range" min="-0.12" max="0.12" step="0.005" value={footerOffsetY} onChange={(e) => setFooterOffsetY(parseFloat(e.target.value))} className="w-full" />
+                    </div>
 
-                {viewMode === 'life' && (
-                  <div className="space-y-2">
-                    <label className={lbl}>Year-block columns: {gridCols === 0 ? 'Auto' : gridCols}</label>
-                    <input type="range" min="0" max="14" step="1" value={gridCols} onChange={(e) => setGridCols(parseInt(e.target.value))} className="w-full" />
-                  </div>
-                )}
+                    {viewMode === 'life' && (
+                      <div className="space-y-2">
+                        <label className={lbl}>Year-block columns: {gridCols === 0 ? 'Auto' : gridCols}</label>
+                        <input type="range" min="0" max="14" step="1" value={gridCols} onChange={(e) => setGridCols(parseInt(e.target.value))} className="w-full" />
+                      </div>
+                    )}
 
-                {skyline && (
-                  <div className="space-y-2">
-                    <label className={lbl}>Skyline position (align with clock)</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={Math.round(((0.36 - skylineBaseline) / 0.24) * 100)}
-                      onChange={(e) => setSkylineBaseline(0.36 - (parseInt(e.target.value) / 100) * 0.24)}
-                      className="w-full"
-                    />
-                  </div>
+                    {skyline && (
+                      <div className="space-y-2">
+                        <label className={lbl}>Skyline position (align with clock)</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={Math.round(((0.36 - skylineBaseline) / 0.24) * 100)}
+                          onChange={(e) => setSkylineBaseline(0.36 - (parseInt(e.target.value) / 100) * 0.24)}
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <button
-                  onClick={() => { setGridScale(1); setGridOffsetY(0); setGridCols(0); setFooterOffsetY(0); setSkylineBaseline(DEFAULT_CONFIG.skylineBaseline); }}
+                  onClick={() => {
+                    if (deviceKind === 'macbook') { setGridScale(1); setGridOffsetY(0); }
+                    else { setGridScale(1); setGridOffsetY(0); setGridCols(0); setFooterOffsetY(0); setSkylineBaseline(DEFAULT_CONFIG.skylineBaseline); }
+                  }}
                   className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 transition-colors text-xs uppercase tracking-widest"
                 >
                   Reset nudges
@@ -620,7 +628,6 @@ export default function Home() {
               </>
             )}
           </div>
-          )}
 
           {/* Config */}
           <div className={card}>

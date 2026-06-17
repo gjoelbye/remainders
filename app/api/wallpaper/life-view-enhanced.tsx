@@ -67,6 +67,13 @@ interface LifeViewProps {
    * the bottom for the skyline; fit the grid to its area (no phone zoom/nudge).
    */
   desktop?: boolean;
+  /**
+   * Current-week dot handling, for the glowing-dot composite:
+   * - 'normal': draw it inline (default)
+   * - 'omit':   draw everything EXCEPT the current dot (its cell is left empty)
+   * - 'only':   draw ONLY the current dot (transparent everything else)
+   */
+  currentDotMode?: 'normal' | 'omit' | 'only';
 }
 
 export default function LifeView({
@@ -109,7 +116,11 @@ export default function LifeView({
   footerOffsetY = 0,
   overlay = false,
   desktop = false,
+  currentDotMode = 'normal',
 }: LifeViewProps) {
+  const omitCurrent = currentDotMode === 'omit';
+  const onlyCurrent = currentDotMode === 'only';
+
   // Life Logic
   const LIFE_EXPECTANCY_YEARS = lifeExpectancyYears;
   const birth = new Date(birthDate);
@@ -148,7 +159,7 @@ export default function LifeView({
   // fixed band so the grid is sized/centered ABOVE it and the footer is pinned
   // the same distance from the bottom margin.
   // MacBook drops the stats footer for now and gives the whole area to the grid.
-  const showFooter = typography.statsVisible && !desktop;
+  const showFooter = typography.statsVisible && !desktop && !onlyCurrent;
   const footerLineFont = width * typography.fontSize * 0.85;
   const footerLineH = footerLineFont * 1.4;
   const footerBlockH = showFooter ? footerLineH * 3 : 0;
@@ -263,6 +274,7 @@ export default function LifeView({
     startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * ((desktop ? 0 : BASE_GRID_OFFSET_Y) + gridOffsetY);
 
     for (let i = 0; i < TOTAL_DOTS; i++) {
+      if (onlyCurrent && i !== weeksLived) continue; // dot-only pass: skip the rest
       const year = Math.floor(i / WEEKS_PER_YEAR);
       const weekInYear = i % WEEKS_PER_YEAR;
       const [bRow, bCol] = yearCells[year];
@@ -272,8 +284,9 @@ export default function LifeView({
       const radius = dotSize / 2;
 
       if (i === weeksLived) {
-        // Current week — always a filled dot so it stands out among the rings.
-        currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: 'circle' });
+        // Current week — a filled dot. Omitted here when the compositor draws it
+        // separately as a glowing P3 dot.
+        if (!omitCurrent) currentDot = dotSvgElement({ keyId: 'current', cx, cy, radius, color: colors.current, shape: 'circle' });
       } else if (milestoneColorByWeek.has(i)) {
         // Milestone week — filled in its accent color.
         milestoneDots.push(dotSvgElement({ keyId: `ms-${i}`, cx, cy, radius, color: milestoneColorByWeek.get(i)!, shape: 'circle' }));
@@ -285,7 +298,7 @@ export default function LifeView({
     }
 
     // Decade labels: a small age number above each decade-boundary block.
-    if (lifeGrouping.decadeLabels) {
+    if (lifeGrouping.decadeLabels && !onlyCurrent) {
       const labelFont = Math.max(8, Math.floor(dotSize * 1.3));
       for (let year = 0; year < N; year += 10) {
         const [bRow, bCol] = yearCells[year];
@@ -354,6 +367,7 @@ export default function LifeView({
       <svg
         width={gridWidth}
         height={gridHeight}
+        viewBox={`0 0 ${gridWidth} ${gridHeight}`}
         style={{
           position: 'absolute',
           left: `${startX}px`,
