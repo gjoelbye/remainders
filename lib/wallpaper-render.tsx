@@ -49,6 +49,13 @@ export const BASE_GRID_SCALE = 1.12;
 export const BASE_GRID_OFFSET_Y = -0.025;
 
 /**
+ * Same idea for the MacBook (desktop) layout: the tuned look (grid fit ×0.92,
+ * nudged down 0.075h) reads as 100% / 0 on the sliders.
+ */
+export const BASE_DESKTOP_SCALE = 0.92;
+export const BASE_DESKTOP_OFFSET_Y = 0.075;
+
+/**
  * Copenhagen skyline silhouette behind the clock, tinted with a theme color so
  * it matches every palette. Inset by `sidePadding` so it shares the grid's even
  * left/right margins, and the heavy solid base is trimmed by shrinking the

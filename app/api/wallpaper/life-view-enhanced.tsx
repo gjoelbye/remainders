@@ -7,7 +7,7 @@
  */
 
 import { TextElement, BackgroundStyle, LifeGrouping, Milestone } from '@/lib/types';
-import { buildBackgroundStyle, dotSvgElement, computeSafeAreaTop, skylineElement, BASE_GRID_SCALE, BASE_GRID_OFFSET_Y } from '@/lib/wallpaper-render';
+import { buildBackgroundStyle, dotSvgElement, computeSafeAreaTop, skylineElement, BASE_GRID_SCALE, BASE_GRID_OFFSET_Y, BASE_DESKTOP_SCALE, BASE_DESKTOP_OFFSET_Y } from '@/lib/wallpaper-render';
 
 interface LifeViewProps {
   width: number;
@@ -260,9 +260,9 @@ export default function LifeView({
     const wUnits = blockCols * BLOCK_COLS + INNER_SPACING * blockCols * (BLOCK_COLS - 1) + BLOCK_GAP_UNITS * (blockCols - 1);
     const hUnits = blockRows * BLOCK_ROWS + INNER_SPACING * blockRows * (BLOCK_ROWS - 1) + BLOCK_GAP_UNITS * (blockRows - 1);
     // Keep sizes fractional (no floor) so the zoom slider scales smoothly
-    // instead of plateauing on integer pixel steps. Desktop fits the grid to its
-    // area (0.95 margin); phone uses the tuned BASE_GRID_SCALE zoom.
-    const baseScale = desktop ? 1.0 : BASE_GRID_SCALE;
+    // instead of plateauing on integer pixel steps. Each layout has its own
+    // tuned baseline that reads as 100% on the grid-size slider.
+    const baseScale = desktop ? BASE_DESKTOP_SCALE : BASE_GRID_SCALE;
     const dotSize = Math.max(2, Math.min(availableWidth / wUnits, gridAreaHeight / hUnits) * baseScale * gridScale);
     const innerGap = Math.max(1, dotSize * INNER_SPACING);
     const blockGap = Math.max(2, dotSize * BLOCK_GAP_UNITS);
@@ -275,7 +275,7 @@ export default function LifeView({
     // Always center on the screen (overflowing symmetrically when zoomed in),
     // rather than pinning to the side padding.
     startX = (width - gridWidth) / 2;
-    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * ((desktop ? 0 : BASE_GRID_OFFSET_Y) + gridOffsetY);
+    startY = SAFE_AREA_TOP + (gridAreaHeight - gridHeight) / 2 + height * ((desktop ? BASE_DESKTOP_OFFSET_Y : BASE_GRID_OFFSET_Y) + gridOffsetY);
 
     for (let i = 0; i < TOTAL_DOTS; i++) {
       if (onlyCurrent && i !== weeksLived) continue; // dot-only pass: skip the rest
